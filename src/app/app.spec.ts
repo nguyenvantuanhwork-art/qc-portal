@@ -17,10 +17,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render TestFlow AI shell', async () => {
+  it('should render TestFlow shell', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('TestFlow AI');
+    expect(compiled.querySelector('h1')?.textContent).toContain('TestFlow');
   });
 });

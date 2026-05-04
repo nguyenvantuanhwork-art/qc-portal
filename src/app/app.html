@@ -5,7 +5,7 @@
 @if (auth.authReady() && !auth.user()) {
 <div class="absolute inset-0 z-[200] flex items-center justify-center bg-gray-950/95 p-6">
 <div class="w-full max-w-md rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-xl">
-<h2 class="text-lg font-semibold text-white mb-0.5">TestFlow AI</h2>
+<h2 class="text-lg font-semibold text-white mb-0.5">TestFlow</h2>
 <p class="text-gray-500 text-xs mb-4">Đăng nhập hoặc đăng ký để tiếp tục</p>
 <div class="flex rounded-lg border border-gray-800 p-0.5 mb-4 bg-gray-950/50">
 <button
@@ -81,7 +81,7 @@
 >Tạo tài khoản</button>
 </div>
 }
-<p class="text-gray-600 text-[11px] mt-5 leading-relaxed">Tài khoản mẫu: <span class="text-gray-400">admin/admin</span>, <span class="text-gray-400">user/user</span> (dự án Google), <span class="text-gray-400">user2/user2</span>.</p>
+<p class="text-gray-600 text-[11px] mt-5 leading-relaxed">Dùng tài khoản do quản trị viên cấp. Thông tin đăng nhập môi trường thử nghiệm xem tài liệu triển khai.</p>
 </div>
 </div>
 }
@@ -92,7 +92,7 @@
 <div class="px-3 pb-2 border-b border-gray-800 flex items-center gap-2">
 <span class="material-symbols-outlined text-blue-500 fill text-xl" data-weight="fill">token</span>
 <div>
-<h1 class="text-blue-500 font-black font-title-sm text-sm">TestFlow AI</h1>
+<h1 class="text-blue-500 font-black font-title-sm text-sm">TestFlow</h1>
 <p class="font-body-sm text-[10px] text-gray-400">QA Automation</p>
 </div>
 </div>
@@ -349,7 +349,7 @@
 } @else if (notificationsError()) {
 <div class="px-3 py-4 text-red-400 text-xs">{{ notificationsError() }}</div>
 } @else if (notifications().length === 0) {
-<div class="px-3 py-10 text-center text-gray-500 text-sm leading-relaxed">Chưa có thông báo.<br /><span class="text-[11px] text-gray-600">Kết quả chạy test, lời mời dự án… sẽ hiển thị tại đây.</span></div>
+<div class="px-3 py-10 text-center text-gray-500 text-sm leading-relaxed">Chưa có thông báo.<br /><span class="text-[11px] text-gray-600">Thông báo hệ thống hiển thị tại đây.</span></div>
 } @else {
 @for (n of notifications(); track n.id) {
 <button
@@ -403,7 +403,6 @@
 <div [class.hidden]="currentSidebarSection() !== 'project'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
   <div class="mb-4">
     <h2 class="text-white font-semibold text-[16px]">Dự án</h2>
-    <p class="text-[11px] text-gray-500 mt-0.5">Thông tin dự án đang chọn trên thanh header</p>
   </div>
 
   @if (selectedProject(); as proj) {
@@ -446,7 +445,7 @@
   </div>
   } @else {
   <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
-    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+    Chưa chọn dự án.
   </div>
   }
 </div>
@@ -454,7 +453,6 @@
 <div [class.hidden]="currentSidebarSection() !== 'members'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
   <div class="mb-4">
     <h2 class="text-white font-semibold text-[16px]">Thành viên</h2>
-    <p class="text-[11px] text-gray-500 mt-0.5">Thành viên của dự án đang chọn trên thanh header</p>
   </div>
 
   @if (selectedProject(); as proj) {
@@ -517,13 +515,13 @@
           Thêm thành viên
         </button>
       </div>
-      <p class="text-[10px] text-gray-600">Người được mời phải đã đăng ký trong hệ thống. Thành viên có quyền chạy và chỉnh test; chỉ chủ dự án (hoặc admin) mới sửa/xóa dự án hoặc mời người.</p>
+      <p class="text-[10px] text-gray-600">Chỉ mời được tài khoản đã đăng ký. Quản lý thành viên thuộc chủ dự án hoặc quản trị viên.</p>
     </div>
     }
   </div>
   } @else {
   <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
-    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+    Chưa chọn dự án.
   </div>
   }
 </div>
@@ -532,7 +530,7 @@
   <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-white font-semibold text-[16px]">Cài đặt dự án</h2>
-      <p class="text-[11px] text-gray-500 mt-0.5">Áp dụng cho test run &amp; AI trên dự án đang chọn ({{ selectedProjectName() }})</p>
+      <p class="text-[11px] text-gray-500 mt-0.5">Thực thi và hỗ trợ tự động — {{ selectedProjectName() }}</p>
     </div>
     @if (selectedProjectId() && projectSettingsDraft() && projectSettingsCanManage()) {
     <button
@@ -552,7 +550,7 @@
 
   @if (!selectedProjectId()) {
   <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
-    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+    Chưa chọn dự án.
   </div>
   } @else if (projectSettingsLoading()) {
   <div class="text-gray-500 text-sm py-8 text-center">Đang tải cài đặt…</div>
@@ -682,7 +680,7 @@
     <section class="rounded-xl border border-dashboard-border bg-dashboard-bg/40 p-4 space-y-3">
       <h3 class="text-white text-[13px] font-semibold flex items-center gap-2">
         <span class="material-symbols-outlined text-[18px] text-dashboard-primary">smart_toy</span>
-        AI (gợi ý điền trường)
+        Gợi ý giá trị trường
       </h3>
       <label class="flex items-center gap-2 cursor-pointer">
         <input
@@ -692,10 +690,10 @@
           [disabled]="!projectSettingsCanManage()"
           class="rounded border-gray-600"
         />
-        <span class="text-gray-300">Bật AI fill / preview cho dự án này</span>
+        <span class="text-gray-300">Cho phép xem trước gợi ý khi điền bước «Gõ text»</span>
       </label>
       <p class="text-[10px] text-gray-600 leading-relaxed">
-        Khi tắt, preview và gợi ý Gemini bị chặn; vẫn có thể «Áp dụng» nếu đã có sẵn bộ fills từ client (không gọi model).
+        Khi tắt, chế độ xem trước gợi ý bị vô hiệu. Vẫn có thể áp dụng nội dung đã chuẩn bị sẵn (không tạo gợi ý mới).
       </p>
     </section>
   </div>
@@ -739,7 +737,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div>
       <h2 class="text-white font-semibold text-[16px]">Lịch sử chạy test</h2>
-      <p class="text-[11px] text-gray-500 mt-0.5">Các lần chạy trên dự án bạn có quyền truy cập — kèm dự án, chức năng (feature), testcase và người chạy.</p>
+      <p class="text-[11px] text-gray-500 mt-0.5">Theo quyền của bạn: dự án, chức năng, testcase và người thực hiện.</p>
     </div>
     <button
       type="button"
@@ -829,7 +827,7 @@
         </div>
       </div>
       @if (!selectedProjectId()) {
-      <p class="text-amber-400/90 text-[11px]">Chọn dự án ở header để tải danh sách testcase.</p>
+      <p class="text-amber-400/90 text-[11px]">Chọn dự án để tải danh sách testcase.</p>
       } @else if (schedulePickerLoading()) {
       <p class="text-gray-500 text-xs">Đang tải testcase…</p>
       } @else if (schedulePickerTestCases().length === 0) {
@@ -1007,7 +1005,7 @@
         <span class="material-symbols-outlined text-[22px] text-dashboard-primary">monitoring</span>
         Báo cáo thực thi
       </h2>
-      <p class="text-[11px] text-gray-500 mt-0.5">Tổng hợp theo ngày (UTC), testcase lỗi nhiều nhất và thông điệp lỗi lặp lại.</p>
+      <p class="text-[11px] text-gray-500 mt-0.5">Theo khoảng thời gian và bộ lọc phía dưới.</p>
     </div>
     <button type="button" (click)="loadReports()" class="text-xs px-3 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40 shrink-0" [disabled]="reportsLoading()">Tải lại</button>
   </div>
@@ -1373,9 +1371,9 @@
 <input type="checkbox" class="rounded border-dashboard-border" [checked]="aiFillUseDom()" (change)="toggleAiFillUseDom($event)" />
 Thu DOM
 </label>
-<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-40" title="Gemini gợi ý giá trị cho bước Gõ text đang trống">
+<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-40" title="Gợi ý giá trị cho các bước Gõ text đang trống">
 <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
-AI điền
+Gợi ý điền
 </button>
 @if (aiFillDraft()?.fills?.length) {
 <button type="button" (click)="aiFillApply()" [disabled]="aiFillLoading()" class="border border-green-500/50 text-green-300 hover:bg-green-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Áp dụng</button>
@@ -1429,7 +1427,7 @@ Thêm bước
 </td>
 </tr>
 } @empty {
-<tr><td colspan="5" class="px-3 py-10 text-center text-gray-500">Chưa có bước. Bấm «Thêm bước» để tạo.</td></tr>
+<tr><td colspan="5" class="px-3 py-10 text-center text-gray-500">Chưa có bước.</td></tr>
 }
 </tbody>
 </table>
@@ -1441,7 +1439,7 @@ Thêm bước
 <div class="space-y-3">
 <div>
 <label class="block font-label-caps text-[11px] text-gray-400 mb-1">Mô tả</label>
-<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-16 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Nhập mô tả test case...">Kiểm tra luồng đăng nhập với tài khoản hợp lệ.</textarea>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-16 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Mô tả testcase…"></textarea>
 </div>
 <div>
 <label class="block font-label-caps text-[11px] text-gray-400 mb-1">Tags</label>
@@ -1506,46 +1504,177 @@ Thêm bước
 </div>
 <div>
 <label class="block font-label-caps text-[11px] text-gray-400 mb-1">Điều kiện tiên quyết</label>
-<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-10 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Nhập pre-requisite..."></textarea>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-10 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Điều kiện tiên quyết…"></textarea>
 </div>
 </div>
 </div>
-<!-- AI Chat Box -->
+<!-- Hỗ trợ kịch bản: hội thoại & sinh testcase -->
 <div class="bg-blue-900/10 border border-blue-900/30 rounded-lg p-3 relative overflow-hidden">
 <div class="absolute right-0 top-0 opacity-10 pointer-events-none text-8xl -mt-4 -mr-4 text-blue-500">
 <span class="material-symbols-outlined" data-weight="fill">smart_toy</span>
 </div>
-<div class="flex items-center gap-2 mb-2">
+<div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+<div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-dashboard-primary text-[18px]">auto_awesome</span>
-<span class="font-medium text-[14px] text-blue-300">AI Trợ lý TestFlow</span>
+<span class="font-medium text-[14px] text-blue-300">Hỗ trợ kịch bản</span>
 </div>
+<div class="flex rounded-lg border border-dashboard-border overflow-hidden text-[11px]">
+<button
+  type="button"
+  (click)="setAiAssistantTab('chat')"
+  class="px-2.5 py-1 transition-colors"
+  [class.bg-dashboard-primary]="aiAssistantTab() === 'chat'"
+  [class.text-white]="aiAssistantTab() === 'chat'"
+  [class.text-gray-400]="aiAssistantTab() !== 'chat'"
+>Trò chuyện</button>
+<button
+  type="button"
+  (click)="setAiAssistantTab('design')"
+  class="px-2.5 py-1 transition-colors border-l border-dashboard-border"
+  [class.bg-dashboard-primary]="aiAssistantTab() === 'design'"
+  [class.text-white]="aiAssistantTab() === 'design'"
+  [class.text-gray-400]="aiAssistantTab() !== 'design'"
+>Thiết kế testcase</button>
+</div>
+</div>
+
+@if (aiAssistantTab() === 'chat') {
 <div class="flex gap-2 mb-2 flex-wrap">
-<button type="button" (click)="setQuickPrompt('Viết mô tả test case chi tiết cho TC-001 đăng nhập thành công (tiếng Việt).')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Tạo test case</button>
-<button type="button" (click)="setQuickPrompt('Đề xuất 3 bước Puppeteer cụ thể (selector + hành động) để kiểm tra sau khi đăng nhập thành công.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Tạo bước</button>
+<button type="button" (click)="setQuickPrompt('Viết mô tả test case chi tiết cho luồng đăng nhập thành công (tiếng Việt), gồm tiền điều kiện và kết quả mong đợi.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Gợi ý mô tả</button>
+<button type="button" (click)="setQuickPrompt('Đề xuất 3 bước Puppeteer cụ thể (kind + selector hoặc matchText) để kiểm tra sau đăng nhập thành công.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Gợi ý bước</button>
+<button type="button" (click)="setQuickPrompt('Liệt kê rủi ro regression cho các bước hiện tại và cách giảm (checklist ngắn).')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Rủi ro</button>
 </div>
 <div class="relative">
 <input
   class="w-full bg-dashboard-bg border border-dashboard-border rounded-lg pl-3 pr-10 py-2 text-[13px] text-white focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none disabled:opacity-50"
-  placeholder="Ví dụ: 'Tạo bước kiểm tra thông báo lỗi khi sai mật khẩu'..."
+  placeholder="Đặt câu hỏi về kịch bản hoặc bước đang mở…"
   type="text"
   [value]="chatPrompt()"
   (input)="onChatInput($event)"
   (keydown.enter)="sendChat(); $event.preventDefault()"
   [disabled]="aiLoading()"
 />
-<button type="button" (click)="sendChat()" [disabled]="aiLoading()" class="absolute right-2 top-1/2 -translate-y-1/2 text-dashboard-primary p-0.5 hover:bg-dashboard-border/50 rounded disabled:opacity-40" aria-label="Gửi tới Gemini">
+<button type="button" (click)="sendChat()" [disabled]="aiLoading()" class="absolute right-2 top-1/2 -translate-y-1/2 text-dashboard-primary p-0.5 hover:bg-dashboard-border/50 rounded disabled:opacity-40" aria-label="Gửi">
 <span class="material-symbols-outlined text-[18px]">send</span>
 </button>
 </div>
 @if (aiLoading()) {
-<p class="text-blue-300 text-xs mt-2">Đang gọi Gemini…</p>
+<p class="text-blue-300 text-xs mt-2">Đang xử lý…</p>
 }
 @if (aiError()) {
 <p class="text-red-400 text-xs mt-2 leading-snug">{{ aiError() }}</p>
 }
 @if (aiReply()) {
-<div class="mt-3 pt-3 border-t border-blue-900/40 text-[12px] text-gray-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{{ aiReply() }}</div>
+<div class="mt-3 pt-3 border-t border-blue-900/40 text-[12px] text-gray-300 whitespace-pre-wrap leading-relaxed max-h-52 overflow-y-auto">{{ aiReply() }}</div>
 }
+} @else {
+<p class="text-[11px] text-gray-500 mb-2">Mô tả luồng cần kiểm thử. Xem trước kết quả, chỉnh sửa nếu cần, rồi áp dụng vào chức năng đang chọn.</p>
+<div class="flex gap-2 mb-2 flex-wrap">
+<button type="button" (click)="setAiDesignQuickPrompt('Tạo testcase: đăng nhập thành công với email demo và mật khẩu hợp lệ; sau đó xác minh đã vào trang dashboard hoặc có avatar người dùng.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Đăng nhập OK</button>
+<button type="button" (click)="setAiDesignQuickPrompt('Tạo testcase: nhập sai mật khẩu, mong đợi thông báo lỗi hiển thị gần form đăng nhập.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Sai mật khẩu</button>
+<button type="button" (click)="setAiDesignQuickPrompt('Chỉ thêm các bước: đợi 2s sau navigate, rồi click nút có chữ «Tiếp tục».')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Thêm bước</button>
+</div>
+<textarea
+  class="w-full bg-dashboard-bg border border-dashboard-border rounded-lg px-3 py-2 text-[13px] text-white focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none disabled:opacity-50 min-h-[72px] resize-y mb-2"
+  placeholder="Mô tả kịch bản hoặc luồng cần tạo…"
+  [value]="aiDesignPrompt()"
+  (input)="onAiDesignPromptInput($event)"
+  [disabled]="aiDesignLoading()"
+></textarea>
+<textarea
+  class="w-full bg-dashboard-bg border border-dashboard-border rounded-lg px-3 py-2 text-[12px] text-gray-300 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none disabled:opacity-50 min-h-[48px] resize-y mb-2"
+  placeholder="Tiền điều kiện hoặc giả định bổ sung (tùy chọn)"
+  [value]="aiDesignContextExtra()"
+  (input)="onAiDesignContextExtraInput($event)"
+  [disabled]="aiDesignLoading()"
+></textarea>
+<label class="flex items-center gap-2 text-[11px] text-gray-400 mb-2 cursor-pointer select-none">
+<input type="checkbox" [checked]="aiDesignAppendOnly()" (change)="aiDesignAppendOnly.set($any($event.target).checked)" class="rounded border-dashboard-border bg-dashboard-bg" />
+<span>Chỉ thêm bước vào testcase đang chọn (không tạo testcase mới)</span>
+</label>
+<div class="flex flex-wrap gap-2 mb-2">
+<button
+  type="button"
+  (click)="previewAiTestCaseDesign()"
+  [disabled]="aiDesignLoading() || aiDesignApplyLoading()"
+  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dashboard-bg border border-dashboard-border text-[12px] text-gray-200 hover:border-dashboard-primary disabled:opacity-40"
+>
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+Xem trước
+</button>
+<button
+  type="button"
+  (click)="applyAiTestCaseDesign()"
+  [disabled]="!aiDesignDraft() || aiDesignApplyLoading() || aiDesignLoading()"
+  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dashboard-primary/20 border border-dashboard-primary/50 text-[12px] text-dashboard-primary hover:bg-dashboard-primary/30 disabled:opacity-40"
+>
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+Áp dụng
+</button>
+@if (aiDesignDraft()) {
+<button type="button" (click)="clearAiDesignDraft()" class="text-[11px] text-gray-500 hover:text-gray-300 underline">Xóa bản nháp</button>
+}
+</div>
+@if (aiDesignLoading()) {
+<p class="text-blue-300 text-xs mb-2">Đang tạo bản nháp…</p>
+}
+@if (aiDesignApplyLoading()) {
+<p class="text-blue-300 text-xs mb-2">Đang áp dụng vào dự án…</p>
+}
+@if (aiDesignError()) {
+<p class="text-red-400 text-xs mb-2 leading-snug">{{ aiDesignError() }}</p>
+}
+@if (aiDesignDraft(); as draft) {
+<div class="mt-2 pt-2 border-t border-blue-900/40 space-y-2 text-[12px]">
+<div class="text-gray-400 font-label-caps text-[10px] uppercase tracking-wider">Bản nháp — kiểm tra ID trước khi áp dụng</div>
+<div class="grid grid-cols-1 gap-2">
+<label class="block"><span class="text-[10px] text-gray-500">ID</span>
+<input class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-200 text-[12px]" [value]="draft.testCase.id" (input)="patchAiDesignTestCase('id', $any($event.target).value)" /></label>
+<label class="block"><span class="text-[10px] text-gray-500">Key</span>
+<input class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-200 text-[12px]" [value]="draft.testCase.key ?? ''" (input)="patchAiDesignTestCase('key', $any($event.target).value)" /></label>
+<label class="block"><span class="text-[10px] text-gray-500">Tên</span>
+<input class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-200 text-[12px]" [value]="draft.testCase.name" (input)="patchAiDesignTestCase('name', $any($event.target).value)" /></label>
+<label class="block"><span class="text-[10px] text-gray-500">Mô tả</span>
+<textarea class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-300 text-[12px] min-h-[56px]" [value]="draft.testCase.description" (input)="patchAiDesignTestCase('description', $any($event.target).value)"></textarea></label>
+<div class="grid grid-cols-2 gap-2">
+<label class="block"><span class="text-[10px] text-gray-500">Ưu tiên</span>
+<input class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-200 text-[12px]" [value]="draft.testCase.priority" (input)="patchAiDesignTestCase('priority', $any($event.target).value)" /></label>
+<label class="block"><span class="text-[10px] text-gray-500">Trạng thái</span>
+<input class="w-full mt-0.5 bg-dashboard-bg border border-dashboard-border rounded px-2 py-1 text-gray-200 text-[12px]" [value]="draft.testCase.status" (input)="patchAiDesignTestCase('status', $any($event.target).value)" /></label>
+</div>
+</div>
+@if (aiDesignWarnings().length) {
+<div class="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-amber-200/90">
+<div class="font-medium text-amber-300/90 mb-0.5">Cảnh báo</div>
+<ul class="list-disc pl-4 space-y-0.5">
+@for (w of aiDesignWarnings(); track w) {
+<li>{{ w }}</li>
+}
+</ul>
+</div>
+}
+<div class="max-h-44 overflow-y-auto rounded border border-dashboard-border/60 divide-y divide-dashboard-border/40">
+@for (a of draft.actions; track $index; let i = $index) {
+<div class="px-2 py-1.5 flex flex-col gap-0.5" [class.opacity-50]="!a.enabled || a.validationError">
+<span class="text-gray-200"><span class="text-gray-500">{{ i + 1 }}.</span> [{{ a.kind }}] {{ a.name }}</span>
+@if (a.validationError) {
+<span class="text-red-400 text-[10px]">{{ a.validationError }}</span>
+} @else {
+<span class="text-[10px] text-gray-500 font-mono">{{ a.kind === 'navigate' && a.config.url ? a.config.url : '' }}{{ a.kind === 'click_selector' && a.config.selector ? a.config.selector : '' }}{{ a.kind === 'click_text' && a.config.matchText ? a.config.matchText : '' }}{{ a.kind === 'type' ? (a.config.selector ?? '') + ' ← ' + (a.config.value ?? '') : '' }}{{ a.kind === 'wait' ? (a.config.waitMs ?? 0) + ' ms' : '' }}</span>
+}
+@if (a.expectation) {
+<span class="text-[10px] text-gray-400 italic">Kỳ vọng: {{ a.expectation }}</span>
+}
+</div>
+}
+</div>
+@if (draft.notes) {
+<p class="text-[11px] text-gray-500 italic">{{ draft.notes }}</p>
+}
+</div>
+}
+}
+
 <div [class.hidden]="currentSidebarSection() !== 'explorer'" class="hidden">
 <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
 <div class="rounded-lg border border-dashboard-border bg-dashboard-bg/30 p-2 max-h-[70vh] overflow-y-auto">
@@ -1627,7 +1756,7 @@ Thêm bước
 <div class="text-white font-medium">Chi tiết test case</div>
 <button type="button" (click)="openSidebarSection('testcase')" class="text-xs text-dashboard-primary hover:underline">Mở màn Testcase</button>
 </div>
-<div class="mt-2 text-xs text-gray-400 whitespace-pre-wrap">{{ buildTestCaseContext() }}</div>
+<div class="mt-2 text-xs text-gray-400">{{ actions().length }} bước trong kịch bản</div>
 </div>
 } @else {
 <div class="text-gray-500">Chọn 1 test case để xem chi tiết.</div>
@@ -1760,7 +1889,7 @@ Thêm bước
 <img [src]="selectedShotDataUrl()!" alt="Screenshot" class="absolute inset-0 w-full h-full object-cover object-top" />
 } @else {
 <div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm px-4 text-center">
-Chưa có ảnh. Bấm “Chạy test”.
+Chưa có ảnh chụp màn hình.
 </div>
 }
 </div>
@@ -1801,18 +1930,18 @@ Chưa có ảnh. Bấm “Chạy test”.
 </div>
 </div>
 </div>
-<!-- Panel Bottom: AI Analysis -->
+<!-- Tóm tắt kết quả chạy -->
 <div class="p-3 border-t border-dashboard-border bg-dashboard-surface shrink-0 min-h-0 max-h-[min(42vh,320px)] flex flex-col">
 <div class="bg-blue-900/20 border border-blue-900/50 rounded-lg p-2.5 space-y-2 min-h-0 flex flex-col flex-1">
 <div class="flex flex-wrap items-center justify-between gap-2 shrink-0">
-<span class="text-[13px] font-medium text-blue-300">AI Phân tích kết quả</span>
+<span class="text-[13px] font-medium text-blue-300">Tóm tắt kết quả</span>
 <button
   type="button"
   (click)="analyzeRunResult()"
   [disabled]="runAnalysisLoading() || !runResult()"
   class="text-[11px] px-2.5 py-1 rounded-lg border border-blue-500/40 text-blue-200 hover:bg-blue-500/15 disabled:opacity-40 disabled:pointer-events-none shrink-0"
 >
-  {{ runAnalysisLoading() ? 'Đang phân tích…' : 'Phân tích bằng AI' }}
+  {{ runAnalysisLoading() ? 'Đang tạo tóm tắt…' : 'Tóm tắt nhanh' }}
 </button>
 </div>
 <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
@@ -1820,13 +1949,13 @@ Chưa có ảnh. Bấm “Chạy test”.
 <p class="text-[11px] text-red-400 break-words">{{ runAnalysisError() }}</p>
 }
 @if (!runResult()) {
-<p class="text-[12px] text-gray-500 leading-relaxed">Chạy test ít nhất một lần; sau đó bấm «Phân tích bằng AI» để nhận nhận xét ngắn.</p>
+<p class="text-[12px] text-gray-500 leading-relaxed">Chạy testcase trước; sau đó dùng «Tóm tắt nhanh» để xem nhận xét ngắn.</p>
 } @else if (runAnalysisLoading()) {
-<p class="text-[12px] text-gray-400 animate-pulse">Đang gửi kết quả tới AI…</p>
+<p class="text-[12px] text-gray-400 animate-pulse">Đang tạo tóm tắt…</p>
 } @else if (runAnalysisText()) {
 <p class="text-[12px] text-gray-200 leading-relaxed whitespace-pre-wrap break-words">{{ runAnalysisText() }}</p>
 } @else {
-<p class="text-[12px] text-gray-400 leading-relaxed">Bấm «Phân tích bằng AI» để xem đánh giá ngắn gọn về lần chạy vừa rồi.</p>
+<p class="text-[12px] text-gray-400 leading-relaxed">Chọn «Tóm tắt nhanh» để xem đánh giá ngắn về lần chạy hiện tại.</p>
 }
 </div>
 </div>
@@ -1989,11 +2118,11 @@ Chưa có ảnh. Bấm “Chạy test”.
 </div>
 <textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300 h-14 resize-none" placeholder="Kỳ vọng (tuỳ chọn)" [value]="formExpectation()" (input)="onFormExpectationInput($event)"></textarea>
 <div class="flex gap-2 flex-wrap items-center">
-<label class="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer select-none" title="Puppeteer đọc label/placeholder trước khi hỏi Gemini (chậm)">
+<label class="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer select-none" title="Đọc nhãn và placeholder từ trang trước khi gợi ý (chậm hơn)">
 <input type="checkbox" class="rounded border-dashboard-border" [checked]="aiFillUseDom()" (change)="toggleAiFillUseDom($event)" />
 Thu DOM
 </label>
-<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">AI điền</button>
+<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Gợi ý điền</button>
 @if (aiFillDraft()?.fills?.length) {
 <button type="button" (click)="aiFillApply()" [disabled]="aiFillLoading()" class="border border-green-500/50 text-green-300 hover:bg-green-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Áp dụng</button>
 }
@@ -2085,7 +2214,7 @@ Thu DOM
 @if (selectedShotDataUrl()) {
 <img [src]="selectedShotDataUrl()!" alt="Screenshot" class="max-w-full max-h-full object-contain" />
 } @else {
-<span class="text-gray-500 text-sm px-4 text-center">Chưa có ảnh. Chạy test từ tab «Chỉnh sửa bước» hoặc nút trên.</span>
+<span class="text-gray-500 text-sm px-4 text-center">Chưa có ảnh chụp cho lần chạy này.</span>
 }
 </div>
 <div class="flex gap-2 overflow-x-auto pb-1">

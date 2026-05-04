@@ -112,6 +112,49 @@ type AiFillResponse =
     }
   | { ok: false; error: string };
 
+/** Bản nháp testcase/bước từ AI — khớp qc-api `AiGeneratedDraft`. */
+export interface AiDesignDraftDto {
+  testCase: {
+    id: string;
+    key: string | null;
+    name: string;
+    description: string;
+    status: string;
+    priority: string;
+  };
+  actions: Array<{
+    kind: ActionKind;
+    name: string;
+    config: TestActionDto['config'];
+    expectation?: string;
+    enabled: boolean;
+    validationError?: string;
+  }>;
+  notes?: string;
+}
+
+type AiTestCaseFromPromptResponse =
+  | {
+      ok: true;
+      mode: 'preview';
+      draft: AiDesignDraftDto;
+      warnings: string[];
+      model?: string;
+    }
+  | {
+      ok: true;
+      mode: 'apply';
+      testCase: TestCaseDto;
+      actions: TestActionDto[];
+    }
+  | {
+      ok: true;
+      mode: 'apply';
+      appendToTestCaseId: string;
+      actionsCreated: TestActionDto[];
+    }
+  | { ok: false; error: string };
+
 export interface RunStepDto {
   actionId: string;
   order: number;
@@ -319,6 +362,20 @@ export class App implements OnInit, OnDestroy {
   protected readonly aiFillError = signal<string | null>(null);
   protected readonly aiFillDraft = signal<{ fills: AiFillItemDto[]; model?: string } | null>(null);
   protected readonly aiFillUseDom = signal(false);
+
+  /** TestFlow AI: trò chuyện vs thiết kế testcase từ prompt. */
+  protected readonly aiAssistantTab = signal<'chat' | 'design'>('chat');
+  protected readonly aiDesignPrompt = signal('');
+  /** Gợi ý thêm cho AI (tiền điều kiện, URL đặc biệt) — tùy chọn. */
+  protected readonly aiDesignContextExtra = signal('');
+  protected readonly aiDesignDraft = signal<AiDesignDraftDto | null>(null);
+  protected readonly aiDesignWarnings = signal<string[]>([]);
+  protected readonly aiDesignModel = signal<string | null>(null);
+  protected readonly aiDesignLoading = signal(false);
+  protected readonly aiDesignError = signal<string | null>(null);
+  protected readonly aiDesignApplyLoading = signal(false);
+  /** Chỉ thêm các bước vào testcase đang mở (không tạo testcase mới). */
+  protected readonly aiDesignAppendOnly = signal(false);
 
   protected readonly actions = signal<TestActionDto[]>([]);
   protected readonly actionsLoading = signal(false);
@@ -1018,7 +1075,11 @@ export class App implements OnInit, OnDestroy {
       });
   }
 
-  private loadTestCases(projectId: string, featureId: string): void {
+  private loadTestCases(
+    projectId: string,
+    featureId: string,
+    opts?: { selectTestCaseId?: string },
+  ): void {
     this.http
       .get<{ ok: boolean; testCases?: TestCaseDto[]; error?: string }>(
         `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/test-cases`,
@@ -1034,11 +1095,13 @@ export class App implements OnInit, OnDestroy {
             ...this.testCasesByFeature(),
             [featureId]: body.testCases,
           });
-          const preferred =
-            body.testCases.find((t) => t.id === 'tc-001') ??
-            body.testCases.find((t) => t.id === 'tc-google-search') ??
-            body.testCases[0] ??
-            null;
+          const pickId = opts?.selectTestCaseId?.trim();
+          const preferred = pickId
+            ? (body.testCases.find((t) => t.id === pickId) ?? null)
+            : (body.testCases.find((t) => t.id === 'tc-001') ??
+              body.testCases.find((t) => t.id === 'tc-google-search') ??
+              body.testCases[0] ??
+              null);
           const tcId = preferred?.id ?? null;
           this.selectedTestCaseId.set(tcId);
           this.loadActions();
@@ -2352,7 +2415,7 @@ export class App implements OnInit, OnDestroy {
         this.runAnalysisError.set(
           typeof payload?.error === 'string'
             ? payload.error
-            : err.message || 'Lỗi khi gọi AI (kiểm tra qc-api và GEMINI_API_KEY).',
+            : err.message || 'Không thể gửi yêu cầu. Kiểm tra kết nối tới máy chủ API.',
         );
         this.runAnalysisText.set(null);
       },
@@ -2391,8 +2454,191 @@ export class App implements OnInit, OnDestroy {
             typeof payload?.error === 'string'
               ? payload.error
               : err.message ||
-                `Không gọi được API. Chạy qc-api (npm run dev, port ${QC_API_DEV_PORT}), có GEMINI_API_KEY trong .env, proxy trùng port — restart ng serve.`;
+                `Không kết nối được máy chủ API (đảm bảo qc-api đang chạy và cấu hình proxy đúng cổng).`;
           this.aiError.set(msg);
+        },
+      });
+  }
+
+  protected setAiAssistantTab(tab: 'chat' | 'design'): void {
+    this.aiAssistantTab.set(tab);
+  }
+
+  protected onAiDesignPromptInput(e: Event): void {
+    this.aiDesignPrompt.set((e.target as HTMLTextAreaElement).value);
+  }
+
+  protected onAiDesignContextExtraInput(e: Event): void {
+    this.aiDesignContextExtra.set((e.target as HTMLTextAreaElement).value);
+  }
+
+  protected setAiDesignQuickPrompt(text: string): void {
+    this.aiDesignPrompt.set(text);
+    this.aiDesignError.set(null);
+  }
+
+  /** Ngữ cảnh gửi kèm khi thiết kế: ghi chú người dùng + (nếu có) testcase/bước hiện tại. */
+  protected buildAiDesignContext(): string {
+    const parts: string[] = [];
+    const extra = this.aiDesignContextExtra().trim();
+    if (extra) {
+      parts.push(extra);
+    }
+    if (this.selectedTestCaseId()) {
+      parts.push(this.buildTestCaseContext());
+    }
+    return parts.join('\n\n---\n');
+  }
+
+  protected patchAiDesignTestCase(
+    field: 'id' | 'name' | 'key' | 'description' | 'priority' | 'status',
+    raw: string,
+  ): void {
+    const d = this.aiDesignDraft();
+    if (!d) {
+      return;
+    }
+    const t = { ...d.testCase };
+    const v = raw.trim();
+    if (field === 'id') {
+      t.id = v
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9_-]/g, '')
+        .slice(0, 120);
+    } else if (field === 'key') {
+      t.key = v.length ? v : null;
+    } else {
+      (t as Record<string, string>)[field] = v;
+    }
+    this.aiDesignDraft.set({ ...d, testCase: t });
+  }
+
+  protected clearAiDesignDraft(): void {
+    this.aiDesignDraft.set(null);
+    this.aiDesignWarnings.set([]);
+    this.aiDesignModel.set(null);
+  }
+
+  /** Xem trước: gọi Gemini, nhận JSON — chưa ghi DB. */
+  protected previewAiTestCaseDesign(): void {
+    if (!isPlatformBrowser(this.platformId) || this.aiDesignLoading()) {
+      return;
+    }
+    const projectId = this.selectedProjectId();
+    const featureId = this.selectedFeatureId();
+    const prompt = this.aiDesignPrompt().trim();
+    if (!projectId || !featureId) {
+      this.aiDesignError.set('Chọn dự án và feature trước khi thiết kế testcase.');
+      return;
+    }
+    if (!prompt) {
+      this.aiDesignError.set('Nhập mô tả / prompt cho testcase.');
+      return;
+    }
+    this.aiDesignLoading.set(true);
+    this.aiDesignError.set(null);
+    this.clearAiDesignDraft();
+
+    this.http
+      .post<AiTestCaseFromPromptResponse>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/ai/test-case-from-prompt`,
+        { mode: 'preview', prompt, context: this.buildAiDesignContext() },
+      )
+      .subscribe({
+        next: (body) => {
+          this.aiDesignLoading.set(false);
+          if (!body.ok) {
+            this.aiDesignError.set(body.error ?? 'Xem trước thất bại');
+            return;
+          }
+          if (body.mode !== 'preview') {
+            this.aiDesignError.set('Phản hồi không hợp lệ');
+            return;
+          }
+          this.aiDesignDraft.set(body.draft);
+          this.aiDesignWarnings.set(body.warnings ?? []);
+          this.aiDesignModel.set(body.model ?? null);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.aiDesignLoading.set(false);
+          const payload = err.error as { error?: string } | undefined;
+          this.aiDesignError.set(
+            typeof payload?.error === 'string'
+              ? payload.error
+              : err.message || 'Lỗi khi gọi API thiết kế testcase',
+          );
+        },
+      });
+  }
+
+  /** Áp dụng bản nháp hiện tại vào DB (tạo testcase mới hoặc chỉ thêm bước). */
+  protected applyAiTestCaseDesign(): void {
+    if (!isPlatformBrowser(this.platformId) || this.aiDesignApplyLoading()) {
+      return;
+    }
+    const projectId = this.selectedProjectId();
+    const featureId = this.selectedFeatureId();
+    const draft = this.aiDesignDraft();
+    if (!projectId || !featureId) {
+      this.aiDesignError.set('Chọn dự án và feature.');
+      return;
+    }
+    if (!draft) {
+      this.aiDesignError.set('Chưa có bản nháp — bấm «Xem trước» trước.');
+      return;
+    }
+    const append = this.aiDesignAppendOnly();
+    const selTc = this.selectedTestCaseId();
+    if (append && !selTc) {
+      this.aiDesignError.set('Bật «Chỉ thêm bước» cần đang chọn một testcase.');
+      return;
+    }
+
+    this.aiDesignApplyLoading.set(true);
+    this.aiDesignError.set(null);
+
+    const body: Record<string, unknown> = {
+      mode: 'apply',
+      draft,
+    };
+    if (append && selTc) {
+      body['appendToTestCaseId'] = selTc;
+    }
+
+    this.http
+      .post<AiTestCaseFromPromptResponse>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/ai/test-case-from-prompt`,
+        body,
+      )
+      .subscribe({
+        next: (resp) => {
+          this.aiDesignApplyLoading.set(false);
+          if (!resp.ok) {
+            this.aiDesignError.set(resp.error ?? 'Áp dụng thất bại');
+            return;
+          }
+          if ('appendToTestCaseId' in resp && resp.appendToTestCaseId) {
+            this.loadActions();
+            this.clearAiDesignDraft();
+            this.aiDesignPrompt.set('');
+            return;
+          }
+          if ('testCase' in resp && resp.testCase?.id) {
+            const newId = resp.testCase.id;
+            this.loadTestCases(projectId, featureId, { selectTestCaseId: newId });
+            this.clearAiDesignDraft();
+            this.aiDesignPrompt.set('');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.aiDesignApplyLoading.set(false);
+          const payload = err.error as { error?: string } | undefined;
+          this.aiDesignError.set(
+            typeof payload?.error === 'string'
+              ? payload.error
+              : err.message || 'Lỗi áp dụng testcase',
+          );
         },
       });
   }
@@ -2431,7 +2677,7 @@ export class App implements OnInit, OnDestroy {
         next: (body) => {
           this.aiFillLoading.set(false);
           if (!body.ok) {
-            this.aiFillError.set(body.error ?? 'AI điền thất bại');
+            this.aiFillError.set(body.error ?? 'Gợi ý điền thất bại');
             return;
           }
           this.aiFillDraft.set({ fills: body.fills, model: body.model });
@@ -2442,7 +2688,7 @@ export class App implements OnInit, OnDestroy {
           this.aiFillError.set(
             typeof payload?.error === 'string'
               ? payload.error
-              : err.message || 'Lỗi khi gọi AI điền',
+              : err.message || 'Lỗi khi gọi gợi ý điền',
           );
         },
       });
