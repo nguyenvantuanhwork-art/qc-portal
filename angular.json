@@ -31,7 +31,10 @@
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
-              "allowedHosts": []
+              "allowedHosts": [
+                "qc-portal.onrender.com",
+                "localhost"
+              ]
             },
             "ssr": {
               "entry": "src/server.ts"
