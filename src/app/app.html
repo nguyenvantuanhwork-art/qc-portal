@@ -1,344 +1,2372 @@
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * The content below * * * * * * * * * * * -->
-<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * -->
-<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * Delete the template below * * * * * * * * * -->
-<!-- * * * * * * * to get started with your project! * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+<div class="relative h-screen w-full flex overflow-hidden font-body-sm text-[13px] bg-dashboard-bg text-on-background">
+@if (!auth.authReady()) {
+<div class="absolute inset-0 z-[200] flex items-center justify-center bg-gray-950 text-gray-400 text-sm">Đang tải…</div>
+}
+@if (auth.authReady() && !auth.user()) {
+<div class="absolute inset-0 z-[200] flex items-center justify-center bg-gray-950/95 p-6">
+<div class="w-full max-w-md rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-xl">
+<h2 class="text-lg font-semibold text-white mb-0.5">TestFlow AI</h2>
+<p class="text-gray-500 text-xs mb-4">Đăng nhập hoặc đăng ký để tiếp tục</p>
+<div class="flex rounded-lg border border-gray-800 p-0.5 mb-4 bg-gray-950/50">
+<button
+  type="button"
+  (click)="setAuthTab('login')"
+  class="flex-1 rounded-md py-2 text-xs font-medium transition-colors"
+  [class.bg-blue-600]="authTab() === 'login'"
+  [class.text-white]="authTab() === 'login'"
+  [class.text-gray-400]="authTab() !== 'login'"
+>Đăng nhập</button>
+<button
+  type="button"
+  (click)="setAuthTab('register')"
+  class="flex-1 rounded-md py-2 text-xs font-medium transition-colors"
+  [class.bg-blue-600]="authTab() === 'register'"
+  [class.text-white]="authTab() === 'register'"
+  [class.text-gray-400]="authTab() !== 'register'"
+>Đăng ký</button>
+</div>
+@if (authFormError()) {
+<div class="text-red-400 text-xs mb-3">{{ authFormError() }}</div>
+}
+@if (authTab() === 'login') {
+<div class="space-y-3">
+<label class="block text-[11px] text-gray-500 uppercase tracking-wide">Username</label>
+<input
+  [value]="loginUsername()"
+  (input)="onLoginUserInput($event)"
+  autocomplete="username"
+  class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+  placeholder="admin hoặc user"
+/>
+<label class="block text-[11px] text-gray-500 uppercase tracking-wide">Mật khẩu</label>
+<input
+  type="password"
+  [value]="loginPassword()"
+  (input)="onLoginPassInput($event)"
+  autocomplete="current-password"
+  class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+  placeholder="••••"
+/>
+<button
+  type="button"
+  (click)="submitLogin()"
+  [disabled]="authSubmitting()"
+  class="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+>Đăng nhập</button>
+</div>
+} @else {
+<div class="space-y-3">
+<label class="block text-[11px] text-gray-500 uppercase tracking-wide">Username</label>
+<input
+  [value]="registerUsername()"
+  (input)="onRegisterUserInput($event)"
+  autocomplete="username"
+  class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+  placeholder="Tối thiểu 3 ký tự"
+/>
+<label class="block text-[11px] text-gray-500 uppercase tracking-wide">Mật khẩu</label>
+<input
+  type="password"
+  [value]="registerPassword()"
+  (input)="onRegisterPassInput($event)"
+  autocomplete="new-password"
+  class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+  placeholder="Tối thiểu 4 ký tự"
+/>
+<button
+  type="button"
+  (click)="submitRegister()"
+  [disabled]="authSubmitting()"
+  class="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+>Tạo tài khoản</button>
+</div>
+}
+<p class="text-gray-600 text-[11px] mt-5 leading-relaxed">Tài khoản mẫu: <span class="text-gray-400">admin/admin</span>, <span class="text-gray-400">user/user</span> (dự án Google), <span class="text-gray-400">user2/user2</span>.</p>
+</div>
+</div>
+}
+<!-- Top Navigation Area (Implicit in standard dashboards, but we'll focus on layout requested) -->
+<!-- Left Sidebar -->
+<aside class="fixed left-0 top-0 h-full w-[180px] border-r border-gray-800 bg-gray-900 flex flex-col py-3 gap-2 z-40 transition-all duration-200 ease-in-out hidden md:flex">
+<!-- Brand -->
+<div class="px-3 pb-2 border-b border-gray-800 flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-500 fill text-xl" data-weight="fill">token</span>
+<div>
+<h1 class="text-blue-500 font-black font-title-sm text-sm">TestFlow AI</h1>
+<p class="font-body-sm text-[10px] text-gray-400">QA Automation</p>
+</div>
+</div>
+<!-- Nav Links -->
+<nav class="overflow-y-auto px-2 mt-2 space-y-3">
+<!-- QUẢN LÝ -->
+<div class="flex flex-col gap-0.5">
+<h3 class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Quản lý</h3>
+<button
+  type="button"
+  (click)="openSidebarSection('project')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'project'"
+  [class.text-blue-400]="currentSidebarSection() === 'project'"
+  [class.border-r-4]="currentSidebarSection() === 'project'"
+  [class.border-blue-500]="currentSidebarSection() === 'project'"
+  [class.text-gray-400]="currentSidebarSection() !== 'project'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'project'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'project'"
+>
+<span class="material-symbols-outlined text-[16px]">folder_copy</span>
+        Dự án
+    </button>
+<button
+  type="button"
+  (click)="openSidebarSection('feature')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'feature'"
+  [class.text-blue-400]="currentSidebarSection() === 'feature'"
+  [class.border-r-4]="currentSidebarSection() === 'feature'"
+  [class.border-blue-500]="currentSidebarSection() === 'feature'"
+  [class.text-gray-400]="currentSidebarSection() !== 'feature'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'feature'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'feature'"
+>
+<span class="material-symbols-outlined text-[16px]">extension</span>
+        Feature
+    </button>
+<button
+  type="button"
+  (click)="openSidebarSection('testcase')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'testcase'"
+  [class.text-blue-400]="currentSidebarSection() === 'testcase'"
+  [class.border-r-4]="currentSidebarSection() === 'testcase'"
+  [class.border-blue-500]="currentSidebarSection() === 'testcase'"
+  [class.text-gray-400]="currentSidebarSection() !== 'testcase'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'testcase'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'testcase'"
+>
+<span class="material-symbols-outlined text-[16px] fill">description</span>
+        Test case
+    </button>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">library_books</span>
+        Test Suite
+    </a>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">dns</span>
+        Môi trường
+    </a>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">data_object</span>
+        Biến số
+    </a>
+</div>
+<!-- THỰC THI -->
+<div class="flex flex-col gap-0.5">
+<h3 class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Thực thi</h3>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+        Chạy test
+    </a>
+<button
+  type="button"
+  (click)="openSidebarSection('runhistory')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'runhistory'"
+  [class.text-blue-400]="currentSidebarSection() === 'runhistory'"
+  [class.border-r-4]="currentSidebarSection() === 'runhistory'"
+  [class.border-blue-500]="currentSidebarSection() === 'runhistory'"
+  [class.text-gray-400]="currentSidebarSection() !== 'runhistory'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'runhistory'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'runhistory'"
+>
+<span class="material-symbols-outlined text-[16px]">history</span>
+        Lịch sử chạy
+    </button>
+<button
+  type="button"
+  (click)="openSidebarSection('schedules')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'schedules'"
+  [class.text-blue-400]="currentSidebarSection() === 'schedules'"
+  [class.border-r-4]="currentSidebarSection() === 'schedules'"
+  [class.border-blue-500]="currentSidebarSection() === 'schedules'"
+  [class.text-gray-400]="currentSidebarSection() !== 'schedules'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'schedules'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'schedules'"
+>
+<span class="material-symbols-outlined text-[16px]">event_repeat</span>
+        Lịch chạy tự động
+    </button>
+</div>
+<!-- BÁO CÁO -->
+<div class="flex flex-col gap-0.5">
+<h3 class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Báo cáo</h3>
+<button
+  type="button"
+  (click)="openSidebarSection('reports')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'reports'"
+  [class.text-blue-400]="currentSidebarSection() === 'reports'"
+  [class.border-r-4]="currentSidebarSection() === 'reports'"
+  [class.border-blue-500]="currentSidebarSection() === 'reports'"
+  [class.text-gray-400]="currentSidebarSection() !== 'reports'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'reports'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'reports'"
+>
+<span class="material-symbols-outlined text-[16px]">monitoring</span>
+        Báo cáo &amp; xu hướng
+    </button>
+</div>
+<!-- CẤU HÌNH -->
+<div class="flex flex-col gap-0.5">
+<h3 class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Cấu hình</h3>
+<button
+  type="button"
+  (click)="openSidebarSection('settings')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'settings'"
+  [class.text-blue-400]="currentSidebarSection() === 'settings'"
+  [class.border-r-4]="currentSidebarSection() === 'settings'"
+  [class.border-blue-500]="currentSidebarSection() === 'settings'"
+  [class.text-gray-400]="currentSidebarSection() !== 'settings'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'settings'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'settings'"
+>
+<span class="material-symbols-outlined text-[16px]">settings</span>
+        Cài đặt
+    </button>
+<button
+  type="button"
+  (click)="openSidebarSection('members')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'members'"
+  [class.text-blue-400]="currentSidebarSection() === 'members'"
+  [class.border-r-4]="currentSidebarSection() === 'members'"
+  [class.border-blue-500]="currentSidebarSection() === 'members'"
+  [class.text-gray-400]="currentSidebarSection() !== 'members'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'members'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'members'"
+>
+<span class="material-symbols-outlined text-[16px]">person</span>
+        Thành viên
+    </button>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">groups</span>
+        Nhóm
+    </a>
+</div>
+</nav>
+<!-- Footer Nav -->
+<div class="mt-auto px-2 border-t border-gray-800 pt-2 space-y-0.5">
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+                Documentation
+            </a>
+<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">help_outline</span>
+                Help
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col ml-0 md:ml-[180px] h-full overflow-hidden bg-dashboard-bg">
+<!-- Top Toolbar -->
+<header class="h-14 flex-shrink-0 border-b border-dashboard-border bg-dashboard-surface px-4 flex items-center justify-between sticky top-0 z-30">
+<!-- Breadcrumb -->
+<div class="flex items-center gap-1.5 text-gray-500 text-xs">
+<div class="relative">
+<button type="button" (click)="toggleProjectPicker()" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-dashboard-border bg-dashboard-bg/30 hover:bg-dashboard-border/40 text-white transition-colors">
+  <span class="text-[12px] font-medium">Chọn dự án:</span>
+  <span class="text-[12px] font-semibold truncate max-w-[10rem] sm:max-w-[14rem]">{{ selectedProjectName() }}</span>
+</button>
+@if (projectPickerOpen()) {
+<div class="absolute left-0 top-7 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-40 overflow-hidden">
+<div class="px-3 py-2 border-b border-gray-800 flex items-center justify-between">
+<span class="text-[11px] text-gray-400 uppercase tracking-wider">Chọn dự án</span>
+<button type="button" (click)="openCreateProject(); closeProjectPicker()" class="text-xs text-dashboard-primary hover:underline">+ Thêm</button>
+</div>
+<div class="max-h-72 overflow-y-auto">
+@for (p of projects(); track p.id) {
+<button type="button" (click)="selectProject(p); closeProjectPicker()" class="w-full text-left px-3 py-2 hover:bg-gray-800 flex items-center justify-between gap-2">
+<div>
+<div class="text-gray-100 text-[13px] font-medium">{{ p.name }}</div>
+<div class="text-[11px] text-gray-500">{{ p.key ?? '' }}</div>
+</div>
+@if (selectedProjectId() === p.id) {
+<span class="material-symbols-outlined text-dashboard-primary text-[16px]">check</span>
+}
+</button>
+} @empty {
+<div class="px-3 py-3 text-gray-500 text-sm">Chưa có dự án.</div>
+}
+</div>
+</div>
+}
+</div>
+<span class="text-gray-600">/</span>
+<span class="text-gray-300">{{ selectedFeatureName() }}</span>
+<span class="text-gray-600">/</span>
+<span class="text-dashboard-primary font-medium bg-dashboard-primary/10 px-1.5 py-0.5 rounded">{{ selectedTestCaseId() ?? '—' }}</span>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-3">
+<button type="button" (click)="runTest()" [disabled]="runLoading()" class="border border-dashboard-border text-dashboard-primary hover:bg-dashboard-border/50 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-colors text-[13px]">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                    Chạy test
+                </button>
+</div><div class="flex items-center gap-3 ml-4 pl-4 border-l border-dashboard-border">
+<div class="flex items-center gap-1">
+<button class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-dashboard-border/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
+<div class="relative flex items-center justify-center">
+<button
+  type="button"
+  (click)="toggleNotificationsPanel($event)"
+  class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-dashboard-border/50 flex items-center justify-center relative"
+  [attr.aria-expanded]="notificationPanelOpen()"
+  aria-label="Thông báo"
+>
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+@if (notificationsUnreadCount() > 0) {
+<span class="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center border border-dashboard-surface leading-none">{{ notificationsUnreadCount() > 99 ? '99+' : notificationsUnreadCount() }}</span>
+}
+</button>
+@if (notificationPanelOpen()) {
+<div class="fixed inset-0 z-[44]" (click)="closeNotificationsPanel()" aria-hidden="true"></div>
+<div
+  class="fixed right-3 top-[3.25rem] z-[45] w-[min(100vw-1.5rem,22rem)] max-h-[min(72vh,26rem)] rounded-xl border border-dashboard-border bg-[#111923] shadow-2xl flex flex-col overflow-hidden text-[13px] md:absolute md:right-0 md:top-full md:mt-2 md:top-auto"
+  (click)="$event.stopPropagation()"
+>
+<div class="px-3 py-2.5 border-b border-dashboard-border flex items-center justify-between gap-2 bg-dashboard-surface shrink-0">
+<span class="text-white font-medium text-[14px]">Thông báo</span>
+@if (notifications().some((n) => !n.readAt)) {
+<button type="button" (click)="markAllNotificationsRead()" class="text-[11px] text-dashboard-primary hover:underline shrink-0">Đánh dấu đã đọc</button>
+}
+</div>
+<div class="flex-1 overflow-y-auto min-h-0 max-h-[min(60vh,22rem)]">
+@if (notificationsLoading()) {
+<div class="px-3 py-8 text-center text-gray-500 text-sm">Đang tải…</div>
+} @else if (notificationsError()) {
+<div class="px-3 py-4 text-red-400 text-xs">{{ notificationsError() }}</div>
+} @else if (notifications().length === 0) {
+<div class="px-3 py-10 text-center text-gray-500 text-sm leading-relaxed">Chưa có thông báo.<br /><span class="text-[11px] text-gray-600">Kết quả chạy test, lời mời dự án… sẽ hiển thị tại đây.</span></div>
+} @else {
+@for (n of notifications(); track n.id) {
+<button
+  type="button"
+  (click)="onNotificationRowClick(n)"
+  class="w-full text-left px-3 py-2.5 flex gap-2.5 border-b border-dashboard-border/50 hover:bg-dashboard-border/15 transition-colors"
+  [class.border-l-2]="!n.readAt"
+  [class.border-l-dashboard-primary]="!n.readAt"
+>
+<span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5 text-dashboard-primary">{{ notificationKindIcon(n.kind) }}</span>
+<div class="min-w-0 flex-1">
+<div class="flex items-start justify-between gap-2">
+<span class="text-[13px] text-white font-medium leading-snug">{{ n.title }}</span>
+<span class="text-[10px] text-gray-500 shrink-0 tabular-nums">{{ notificationTimeAgo(n.createdAt) }}</span>
+</div>
+<p class="text-[12px] text-gray-400 mt-0.5 leading-snug break-words">{{ n.body }}</p>
+</div>
+</button>
+}
+}
+</div>
+</div>
+}
+</div>
+<button class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-dashboard-border/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+<button
+  type="button"
+  (click)="logout()"
+  class="flex items-center gap-2 pl-3 border-l border-dashboard-border cursor-pointer hover:bg-dashboard-border/30 p-1 rounded-lg transition-colors text-left"
+  title="Đăng xuất"
+>
+<div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-[11px]">
+{{ (auth.user()?.username ?? '?').slice(0, 2).toUpperCase() }}
+</div>
+<div class="hidden lg:block">
+<p class="text-[13px] font-medium text-white leading-none">{{ auth.user()?.username ?? '—' }}</p>
+<p class="text-[10px] text-gray-500 mt-0.5">{{ auth.user()?.role === 'admin' ? 'Admin' : 'User' }}</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 text-[18px]">logout</span>
+</button>
+</div>
+</header>
+<!-- Editor Workspace (Split View) -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Central Editor -->
+<div class="flex-1 flex flex-col h-full overflow-y-auto">
+<div class="p-4 space-y-4">
+<div [class.hidden]="currentSidebarSection() !== 'project'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="mb-4">
+    <h2 class="text-white font-semibold text-[16px]">Dự án</h2>
+    <p class="text-[11px] text-gray-500 mt-0.5">Thông tin dự án đang chọn trên thanh header</p>
+  </div>
 
-<style>
-  :host {
-    --bright-blue: oklch(51.01% 0.274 263.83);
-    --electric-violet: oklch(53.18% 0.28 296.97);
-    --french-violet: oklch(47.66% 0.246 305.88);
-    --vivid-pink: oklch(69.02% 0.277 332.77);
-    --hot-red: oklch(61.42% 0.238 15.34);
-    --orange-red: oklch(63.32% 0.24 31.68);
-
-    --gray-900: oklch(19.37% 0.006 300.98);
-    --gray-700: oklch(36.98% 0.014 302.71);
-    --gray-400: oklch(70.9% 0.015 304.04);
-
-    --red-to-pink-to-purple-vertical-gradient: linear-gradient(
-      180deg,
-      var(--orange-red) 0%,
-      var(--vivid-pink) 50%,
-      var(--electric-violet) 100%
-    );
-
-    --red-to-pink-to-purple-horizontal-gradient: linear-gradient(
-      90deg,
-      var(--orange-red) 0%,
-      var(--vivid-pink) 50%,
-      var(--electric-violet) 100%
-    );
-
-    --pill-accent: var(--bright-blue);
-
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol";
-    box-sizing: border-box;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    display: block;
-    height: 100dvh;
-  }
-
-  h1 {
-    font-size: 3.125rem;
-    color: var(--gray-900);
-    font-weight: 500;
-    line-height: 100%;
-    letter-spacing: -0.125rem;
-    margin: 0;
-    font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol";
-  }
-
-  p {
-    margin: 0;
-    color: var(--gray-700);
-  }
-
-  main {
-    width: 100%;
-    min-height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem;
-    box-sizing: inherit;
-    position: relative;
-  }
-
-  .angular-logo {
-    max-width: 9.2rem;
-  }
-
-  .content {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    max-width: 700px;
-    margin-bottom: 3rem;
-  }
-
-  .content h1 {
-    margin-top: 1.75rem;
-  }
-
-  .content p {
-    margin-top: 1.5rem;
-  }
-
-  .divider {
-    width: 1px;
-    background: var(--red-to-pink-to-purple-vertical-gradient);
-    margin-inline: 0.5rem;
-  }
-
-  .pill-group {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-  }
-
-  .pill {
-    display: flex;
-    align-items: center;
-    --pill-accent: var(--bright-blue);
-    background: color-mix(in srgb, var(--pill-accent) 5%, transparent);
-    color: var(--pill-accent);
-    padding-inline: 0.75rem;
-    padding-block: 0.375rem;
-    border-radius: 2.75rem;
-    border: 0;
-    transition: background 0.3s ease;
-    font-family: var(--inter-font);
-    font-size: 0.875rem;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 1.4rem;
-    letter-spacing: -0.00875rem;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .pill:hover {
-    background: color-mix(in srgb, var(--pill-accent) 15%, transparent);
-  }
-
-  .pill-group .pill:nth-child(6n + 1) {
-    --pill-accent: var(--bright-blue);
-  }
-  .pill-group .pill:nth-child(6n + 2) {
-    --pill-accent: var(--electric-violet);
-  }
-  .pill-group .pill:nth-child(6n + 3) {
-    --pill-accent: var(--french-violet);
-  }
-
-  .pill-group .pill:nth-child(6n + 4),
-  .pill-group .pill:nth-child(6n + 5),
-  .pill-group .pill:nth-child(6n + 6) {
-    --pill-accent: var(--hot-red);
-  }
-
-  .pill-group svg {
-    margin-inline-start: 0.25rem;
-  }
-
-  .social-links {
-    display: flex;
-    align-items: center;
-    gap: 0.73rem;
-    margin-top: 1.5rem;
-  }
-
-  .social-links path {
-    transition: fill 0.3s ease;
-    fill: var(--gray-400);
-  }
-
-  .social-links a:hover svg path {
-    fill: var(--gray-900);
-  }
-
-  @media screen and (max-width: 650px) {
-    .content {
-      flex-direction: column;
-      width: max-content;
-    }
-
-    .divider {
-      height: 1px;
-      width: 100%;
-      background: var(--red-to-pink-to-purple-horizontal-gradient);
-      margin-block: 1.5rem;
-    }
-  }
-</style>
-
-<main class="main">
-  <div class="content">
-    <div class="left-side">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 982 239"
-        fill="none"
-        class="angular-logo"
+  @if (selectedProject(); as proj) {
+  <div class="rounded-xl border border-dashboard-border bg-dashboard-bg/50 p-4 space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 space-y-1">
+        <div class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Tên dự án</div>
+        <h3 class="text-white text-[18px] font-semibold leading-tight">{{ proj.name }}</h3>
+      </div>
+      @if (projectCanManage()) {
+      <button
+        type="button"
+        (click)="openEditProject(proj)"
+        class="shrink-0 flex items-center gap-1.5 text-xs font-medium text-dashboard-primary border border-dashboard-primary/40 hover:bg-dashboard-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+        title="Sửa thông tin dự án"
       >
-        <g clip-path="url(#a)">
-          <path
-            fill="url(#b)"
-            d="M388.676 191.625h30.849L363.31 31.828h-35.758l-56.215 159.797h30.848l13.174-39.356h60.061l13.256 39.356Zm-65.461-62.675 21.602-64.311h1.227l21.602 64.311h-44.431Zm126.831-7.527v70.202h-28.23V71.839h27.002v20.374h1.392c2.782-6.71 7.2-12.028 13.255-15.956 6.056-3.927 13.584-5.89 22.503-5.89 8.264 0 15.465 1.8 21.684 5.318 6.137 3.518 10.964 8.673 14.319 15.382 3.437 6.71 5.074 14.81 4.992 24.383v76.175h-28.23v-71.92c0-8.019-2.046-14.237-6.219-18.819-4.173-4.5-9.819-6.791-17.102-6.791-4.91 0-9.328 1.063-13.174 3.272-3.846 2.128-6.792 5.237-9.001 9.328-2.046 4.009-3.191 8.918-3.191 14.728ZM589.233 239c-10.147 0-18.82-1.391-26.103-4.091-7.282-2.7-13.092-6.382-17.511-10.964-4.418-4.582-7.528-9.655-9.164-15.219l25.448-6.136c1.145 2.372 2.782 4.663 4.991 6.954 2.209 2.291 5.155 4.255 8.837 5.81 3.683 1.554 8.428 2.291 14.074 2.291 8.019 0 14.647-1.964 19.884-5.81 5.237-3.845 7.856-10.227 7.856-19.064v-22.665h-1.391c-1.473 2.946-3.601 5.892-6.383 9.001-2.782 3.109-6.464 5.645-10.965 7.691-4.582 2.046-10.228 3.109-17.101 3.109-9.165 0-17.511-2.209-25.039-6.545-7.446-4.337-13.42-10.883-17.757-19.474-4.418-8.673-6.628-19.473-6.628-32.565 0-13.091 2.21-24.301 6.628-33.383 4.419-9.082 10.311-15.955 17.839-20.7 7.528-4.746 15.874-7.037 25.039-7.037 7.037 0 12.846 1.145 17.347 3.518 4.582 2.373 8.182 5.236 10.883 8.51 2.7 3.272 4.746 6.382 6.137 9.327h1.554v-19.8h27.821v121.749c0 10.228-2.454 18.737-7.364 25.447-4.91 6.709-11.538 11.7-20.048 15.055-8.509 3.355-18.165 4.991-28.884 4.991Zm.245-71.266c5.974 0 11.047-1.473 15.302-4.337 4.173-2.945 7.446-7.118 9.573-12.519 2.21-5.482 3.274-12.027 3.274-19.637 0-7.609-1.064-14.155-3.274-19.8-2.127-5.646-5.318-10.064-9.491-13.255-4.174-3.11-9.329-4.746-15.384-4.746s-11.537 1.636-15.792 4.91c-4.173 3.272-7.365 7.772-9.492 13.418-2.128 5.727-3.191 12.191-3.191 19.392 0 7.2 1.063 13.745 3.273 19.228 2.127 5.482 5.318 9.736 9.573 12.764 4.174 3.027 9.41 4.582 15.629 4.582Zm141.56-26.51V71.839h28.23v119.786h-27.412v-21.273h-1.227c-2.7 6.709-7.119 12.191-13.338 16.446-6.137 4.255-13.747 6.382-22.748 6.382-7.855 0-14.81-1.718-20.783-5.237-5.974-3.518-10.72-8.591-14.075-15.382-3.355-6.709-5.073-14.891-5.073-24.464V71.839h28.312v71.921c0 7.609 2.046 13.664 6.219 18.083 4.173 4.5 9.655 6.709 16.365 6.709 4.173 0 8.183-.982 12.111-3.028 3.927-2.045 7.118-5.072 9.655-9.082 2.537-4.091 3.764-9.164 3.764-15.218Zm65.707-109.395v159.796h-28.23V31.828h28.23Zm44.841 162.169c-7.61 0-14.402-1.391-20.457-4.091-6.055-2.7-10.883-6.791-14.32-12.109-3.518-5.319-5.237-11.946-5.237-19.801 0-6.791 1.228-12.355 3.765-16.773 2.536-4.419 5.891-7.937 10.228-10.637 4.337-2.618 9.164-4.664 14.647-6.055 5.4-1.391 11.046-2.373 16.856-3.027 7.037-.737 12.683-1.391 17.102-1.964 4.337-.573 7.528-1.555 9.574-2.782 1.963-1.309 3.027-3.273 3.027-5.973v-.491c0-5.891-1.718-10.391-5.237-13.664-3.518-3.191-8.51-4.828-15.056-4.828-6.955 0-12.356 1.473-16.447 4.5-4.009 3.028-6.71 6.546-8.183 10.719l-26.348-3.764c2.046-7.282 5.483-13.336 10.31-18.328 4.746-4.909 10.638-8.59 17.511-11.045 6.955-2.455 14.565-3.682 22.912-3.682 5.809 0 11.537.654 17.265 2.045s10.965 3.6 15.711 6.71c4.746 3.109 8.51 7.282 11.455 12.6 2.864 5.318 4.337 11.946 4.337 19.883v80.184h-27.166v-16.446h-.9c-1.719 3.355-4.092 6.464-7.201 9.328-3.109 2.864-6.955 5.237-11.619 6.955-4.828 1.718-10.229 2.536-16.529 2.536Zm7.364-20.701c5.646 0 10.556-1.145 14.729-3.354 4.173-2.291 7.364-5.237 9.655-9.001 2.292-3.763 3.355-7.854 3.355-12.273v-14.155c-.9.737-2.373 1.391-4.5 2.046-2.128.654-4.419 1.145-7.037 1.636-2.619.491-5.155.9-7.692 1.227-2.537.328-4.746.655-6.628.901-4.173.572-8.019 1.472-11.292 2.781-3.355 1.31-5.973 3.11-7.855 5.401-1.964 2.291-2.864 5.318-2.864 8.918 0 5.237 1.882 9.164 5.728 11.782 3.682 2.782 8.51 4.091 14.401 4.091Zm64.643 18.328V71.839h27.412v19.965h1.227c2.21-6.955 5.974-12.274 11.292-16.038 5.319-3.763 11.456-5.645 18.329-5.645 1.555 0 3.355.082 5.237.163 1.964.164 3.601.328 4.91.573v25.938c-1.227-.41-3.109-.819-5.646-1.146a58.814 58.814 0 0 0-7.446-.49c-5.155 0-9.738 1.145-13.829 3.354-4.091 2.209-7.282 5.236-9.655 9.164-2.373 3.927-3.519 8.427-3.519 13.5v70.448h-28.312ZM222.077 39.192l-8.019 125.923L137.387 0l84.69 39.192Zm-53.105 162.825-57.933 33.056-57.934-33.056 11.783-28.556h92.301l11.783 28.556ZM111.039 62.675l30.357 73.803H80.681l30.358-73.803ZM7.937 165.115 0 39.192 84.69 0 7.937 165.115Z"
-          />
-          <path
-            fill="url(#c)"
-            d="M388.676 191.625h30.849L363.31 31.828h-35.758l-56.215 159.797h30.848l13.174-39.356h60.061l13.256 39.356Zm-65.461-62.675 21.602-64.311h1.227l21.602 64.311h-44.431Zm126.831-7.527v70.202h-28.23V71.839h27.002v20.374h1.392c2.782-6.71 7.2-12.028 13.255-15.956 6.056-3.927 13.584-5.89 22.503-5.89 8.264 0 15.465 1.8 21.684 5.318 6.137 3.518 10.964 8.673 14.319 15.382 3.437 6.71 5.074 14.81 4.992 24.383v76.175h-28.23v-71.92c0-8.019-2.046-14.237-6.219-18.819-4.173-4.5-9.819-6.791-17.102-6.791-4.91 0-9.328 1.063-13.174 3.272-3.846 2.128-6.792 5.237-9.001 9.328-2.046 4.009-3.191 8.918-3.191 14.728ZM589.233 239c-10.147 0-18.82-1.391-26.103-4.091-7.282-2.7-13.092-6.382-17.511-10.964-4.418-4.582-7.528-9.655-9.164-15.219l25.448-6.136c1.145 2.372 2.782 4.663 4.991 6.954 2.209 2.291 5.155 4.255 8.837 5.81 3.683 1.554 8.428 2.291 14.074 2.291 8.019 0 14.647-1.964 19.884-5.81 5.237-3.845 7.856-10.227 7.856-19.064v-22.665h-1.391c-1.473 2.946-3.601 5.892-6.383 9.001-2.782 3.109-6.464 5.645-10.965 7.691-4.582 2.046-10.228 3.109-17.101 3.109-9.165 0-17.511-2.209-25.039-6.545-7.446-4.337-13.42-10.883-17.757-19.474-4.418-8.673-6.628-19.473-6.628-32.565 0-13.091 2.21-24.301 6.628-33.383 4.419-9.082 10.311-15.955 17.839-20.7 7.528-4.746 15.874-7.037 25.039-7.037 7.037 0 12.846 1.145 17.347 3.518 4.582 2.373 8.182 5.236 10.883 8.51 2.7 3.272 4.746 6.382 6.137 9.327h1.554v-19.8h27.821v121.749c0 10.228-2.454 18.737-7.364 25.447-4.91 6.709-11.538 11.7-20.048 15.055-8.509 3.355-18.165 4.991-28.884 4.991Zm.245-71.266c5.974 0 11.047-1.473 15.302-4.337 4.173-2.945 7.446-7.118 9.573-12.519 2.21-5.482 3.274-12.027 3.274-19.637 0-7.609-1.064-14.155-3.274-19.8-2.127-5.646-5.318-10.064-9.491-13.255-4.174-3.11-9.329-4.746-15.384-4.746s-11.537 1.636-15.792 4.91c-4.173 3.272-7.365 7.772-9.492 13.418-2.128 5.727-3.191 12.191-3.191 19.392 0 7.2 1.063 13.745 3.273 19.228 2.127 5.482 5.318 9.736 9.573 12.764 4.174 3.027 9.41 4.582 15.629 4.582Zm141.56-26.51V71.839h28.23v119.786h-27.412v-21.273h-1.227c-2.7 6.709-7.119 12.191-13.338 16.446-6.137 4.255-13.747 6.382-22.748 6.382-7.855 0-14.81-1.718-20.783-5.237-5.974-3.518-10.72-8.591-14.075-15.382-3.355-6.709-5.073-14.891-5.073-24.464V71.839h28.312v71.921c0 7.609 2.046 13.664 6.219 18.083 4.173 4.5 9.655 6.709 16.365 6.709 4.173 0 8.183-.982 12.111-3.028 3.927-2.045 7.118-5.072 9.655-9.082 2.537-4.091 3.764-9.164 3.764-15.218Zm65.707-109.395v159.796h-28.23V31.828h28.23Zm44.841 162.169c-7.61 0-14.402-1.391-20.457-4.091-6.055-2.7-10.883-6.791-14.32-12.109-3.518-5.319-5.237-11.946-5.237-19.801 0-6.791 1.228-12.355 3.765-16.773 2.536-4.419 5.891-7.937 10.228-10.637 4.337-2.618 9.164-4.664 14.647-6.055 5.4-1.391 11.046-2.373 16.856-3.027 7.037-.737 12.683-1.391 17.102-1.964 4.337-.573 7.528-1.555 9.574-2.782 1.963-1.309 3.027-3.273 3.027-5.973v-.491c0-5.891-1.718-10.391-5.237-13.664-3.518-3.191-8.51-4.828-15.056-4.828-6.955 0-12.356 1.473-16.447 4.5-4.009 3.028-6.71 6.546-8.183 10.719l-26.348-3.764c2.046-7.282 5.483-13.336 10.31-18.328 4.746-4.909 10.638-8.59 17.511-11.045 6.955-2.455 14.565-3.682 22.912-3.682 5.809 0 11.537.654 17.265 2.045s10.965 3.6 15.711 6.71c4.746 3.109 8.51 7.282 11.455 12.6 2.864 5.318 4.337 11.946 4.337 19.883v80.184h-27.166v-16.446h-.9c-1.719 3.355-4.092 6.464-7.201 9.328-3.109 2.864-6.955 5.237-11.619 6.955-4.828 1.718-10.229 2.536-16.529 2.536Zm7.364-20.701c5.646 0 10.556-1.145 14.729-3.354 4.173-2.291 7.364-5.237 9.655-9.001 2.292-3.763 3.355-7.854 3.355-12.273v-14.155c-.9.737-2.373 1.391-4.5 2.046-2.128.654-4.419 1.145-7.037 1.636-2.619.491-5.155.9-7.692 1.227-2.537.328-4.746.655-6.628.901-4.173.572-8.019 1.472-11.292 2.781-3.355 1.31-5.973 3.11-7.855 5.401-1.964 2.291-2.864 5.318-2.864 8.918 0 5.237 1.882 9.164 5.728 11.782 3.682 2.782 8.51 4.091 14.401 4.091Zm64.643 18.328V71.839h27.412v19.965h1.227c2.21-6.955 5.974-12.274 11.292-16.038 5.319-3.763 11.456-5.645 18.329-5.645 1.555 0 3.355.082 5.237.163 1.964.164 3.601.328 4.91.573v25.938c-1.227-.41-3.109-.819-5.646-1.146a58.814 58.814 0 0 0-7.446-.49c-5.155 0-9.738 1.145-13.829 3.354-4.091 2.209-7.282 5.236-9.655 9.164-2.373 3.927-3.519 8.427-3.519 13.5v70.448h-28.312ZM222.077 39.192l-8.019 125.923L137.387 0l84.69 39.192Zm-53.105 162.825-57.933 33.056-57.934-33.056 11.783-28.556h92.301l11.783 28.556ZM111.039 62.675l30.357 73.803H80.681l30.358-73.803ZM7.937 165.115 0 39.192 84.69 0 7.937 165.115Z"
-          />
-        </g>
-        <defs>
-          <radialGradient
-            id="c"
-            cx="0"
-            cy="0"
-            r="1"
-            gradientTransform="rotate(118.122 171.182 60.81) scale(205.794)"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stop-color="#FF41F8" />
-            <stop offset=".707" stop-color="#FF41F8" stop-opacity=".5" />
-            <stop offset="1" stop-color="#FF41F8" stop-opacity="0" />
-          </radialGradient>
-          <linearGradient
-            id="b"
-            x1="0"
-            x2="982"
-            y1="192"
-            y2="192"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stop-color="#F0060B" />
-            <stop offset="0" stop-color="#F0070C" />
-            <stop offset=".526" stop-color="#CC26D5" />
-            <stop offset="1" stop-color="#7702FF" />
-          </linearGradient>
-          <clipPath id="a"><path fill="#fff" d="M0 0h982v239H0z" /></clipPath>
-        </defs>
-      </svg>
-      <h1>Hello, {{ title() }}</h1>
-      <p>Congratulations! Your app is running. 🎉</p>
+        <span class="material-symbols-outlined text-[18px]">edit</span>
+        Sửa
+      </button>
+      }
     </div>
-    <div class="divider" role="separator" aria-label="Divider"></div>
-    <div class="right-side">
-      <div class="pill-group">
-        @for (item of [
-          { title: 'Explore the Docs', link: 'https://angular.dev' },
-          { title: 'Learn with Tutorials', link: 'https://angular.dev/tutorials' },
-          { title: 'Prompt and best practices for AI', link: 'https://angular.dev/ai/develop-with-ai'},
-          { title: 'CLI Docs', link: 'https://angular.dev/tools/cli' },
-          { title: 'Angular Language Service', link: 'https://angular.dev/tools/language-service' },
-          { title: 'Angular DevTools', link: 'https://angular.dev/tools/devtools' },
-        ]; track item.title) {
-          <a
-            class="pill"
-            [href]="item.link"
-            target="_blank"
-            rel="noopener"
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
+      <div>
+        <dt class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider mb-1">Key</dt>
+        <dd class="text-gray-200 font-mono text-sm">{{ proj.key?.trim() ? proj.key : '—' }}</dd>
+      </div>
+      <div>
+        <dt class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider mb-1">ID</dt>
+        <dd class="text-gray-400 font-mono text-xs break-all">{{ proj.id }}</dd>
+      </div>
+      <div class="sm:col-span-2">
+        <dt class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider mb-1">Mô tả</dt>
+        <dd class="text-gray-300 leading-relaxed whitespace-pre-wrap">{{ proj.description.trim() ? proj.description : '—' }}</dd>
+      </div>
+      <div>
+        <dt class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider mb-1">Feature (đã tải)</dt>
+        <dd class="text-gray-200">{{ features().length }}</dd>
+      </div>
+    </dl>
+  </div>
+  } @else {
+  <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
+    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+  </div>
+  }
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'members'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="mb-4">
+    <h2 class="text-white font-semibold text-[16px]">Thành viên</h2>
+    <p class="text-[11px] text-gray-500 mt-0.5">Thành viên của dự án đang chọn trên thanh header</p>
+  </div>
+
+  @if (selectedProject(); as proj) {
+  <div class="rounded-xl border border-dashboard-border bg-dashboard-bg/50 p-4 space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="min-w-0">
+        <div class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Dự án</div>
+        <h3 class="text-white text-[15px] font-semibold leading-tight">{{ proj.name }}</h3>
+      </div>
+      @if (projectMembersLoading()) {
+      <span class="text-[11px] text-gray-500 shrink-0">Đang tải…</span>
+      }
+    </div>
+
+    @if (projectMembersError()) {
+    <p class="text-red-400 text-xs">{{ projectMembersError() }}</p>
+    }
+    <ul class="space-y-1.5">
+      @for (m of projectMembers(); track m.userId) {
+      <li class="flex items-center justify-between gap-2 rounded-lg border border-dashboard-border bg-dashboard-bg/40 px-2.5 py-1.5 text-[12px]">
+        <span class="text-gray-200">{{ m.username }}</span>
+        <span class="flex items-center gap-2 shrink-0">
+          <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{{ m.role === 'owner' ? 'Chủ' : 'Thành viên' }}</span>
+          @if (projectCanManage() && m.role !== 'owner') {
+          <button
+            type="button"
+            (click)="removeProjectMember(m)"
+            [disabled]="memberActionLoading()"
+            class="text-gray-500 hover:text-red-400 p-0.5 disabled:opacity-40"
+            title="Gỡ khỏi dự án"
           >
-            <span>{{ item.title }}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="14"
-              viewBox="0 -960 960 960"
-              width="14"
-              fill="currentColor"
-            >
-              <path
-                d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z"
-              />
-            </svg>
-          </a>
+            <span class="material-symbols-outlined text-[16px]">person_remove</span>
+          </button>
+          }
+        </span>
+      </li>
+      } @empty {
+      @if (!projectMembersLoading()) {
+      <li class="text-gray-500 text-xs">Chưa có danh sách (hoặc đang tải).</li>
+      }
+      }
+    </ul>
+    @if (projectCanManage()) {
+    <div class="border-t border-dashboard-border pt-4 flex flex-col gap-2">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          [value]="memberUsernameInput()"
+          (input)="onMemberUsernameInput($event)"
+          placeholder="Username cần mời"
+          autocomplete="username"
+          class="flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+        />
+        <button
+          type="button"
+          (click)="addProjectMember()"
+          [disabled]="memberActionLoading()"
+          class="shrink-0 rounded-lg bg-dashboard-primary px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+        >
+          Thêm thành viên
+        </button>
+      </div>
+      <p class="text-[10px] text-gray-600">Người được mời phải đã đăng ký trong hệ thống. Thành viên có quyền chạy và chỉnh test; chỉ chủ dự án (hoặc admin) mới sửa/xóa dự án hoặc mời người.</p>
+    </div>
+    }
+  </div>
+  } @else {
+  <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
+    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+  </div>
+  }
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'settings'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-white font-semibold text-[16px]">Cài đặt dự án</h2>
+      <p class="text-[11px] text-gray-500 mt-0.5">Áp dụng cho test run &amp; AI trên dự án đang chọn ({{ selectedProjectName() }})</p>
+    </div>
+    @if (selectedProjectId() && projectSettingsDraft() && projectSettingsCanManage()) {
+    <button
+      type="button"
+      (click)="saveProjectSettings()"
+      [disabled]="projectSettingsSaving()"
+      class="shrink-0 rounded-lg bg-dashboard-primary px-4 py-2 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+    >
+      {{ projectSettingsSaving() ? 'Đang lưu…' : 'Lưu cài đặt' }}
+    </button>
+    }
+  </div>
+
+  @if (projectSettingsError()) {
+  <p class="text-red-400 text-xs mb-3">{{ projectSettingsError() }}</p>
+  }
+
+  @if (!selectedProjectId()) {
+  <div class="rounded-lg border border-dashed border-dashboard-border bg-dashboard-bg/30 px-4 py-6 text-center text-gray-500 text-sm">
+    Chưa chọn dự án. Dùng «Chọn dự án» trên thanh trên.
+  </div>
+  } @else if (projectSettingsLoading()) {
+  <div class="text-gray-500 text-sm py-8 text-center">Đang tải cài đặt…</div>
+  } @else if (projectSettingsDraft(); as ps) {
+  <div class="space-y-6">
+    @if (!projectSettingsCanManage()) {
+    <p class="text-[11px] text-amber-500/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+      Bạn chỉ xem được cài đặt; chỉ chủ dự án hoặc admin mới chỉnh được.
+    </p>
+    }
+
+    <section class="rounded-xl border border-dashboard-border bg-dashboard-bg/40 p-4 space-y-4">
+      <h3 class="text-white text-[13px] font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-dashboard-primary">smart_display</span>
+        Chạy test tự động
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[13px]">
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Timeout bước (click/type/chờ selector), ms</span>
+          <input
+            type="number"
+            min="3000"
+            max="120000"
+            [value]="ps.runner.defaultStepTimeoutMs"
+            (input)="onRunnerNumericInput('defaultStepTimeoutMs', 3000, 120000, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Timeout navigate, ms</span>
+          <input
+            type="number"
+            min="10000"
+            max="180000"
+            [value]="ps.runner.navigateTimeoutMs"
+            (input)="onRunnerNumericInput('navigateTimeoutMs', 10000, 180000, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Tối đa «Chờ» (wait), ms</span>
+          <input
+            type="number"
+            min="1000"
+            max="120000"
+            [value]="ps.runner.waitStepMaxMs"
+            (input)="onRunnerNumericInput('waitStepMaxMs', 1000, 120000, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Số lần chạy lại khi fail (retry)</span>
+          <input
+            type="number"
+            min="0"
+            max="5"
+            [value]="ps.runner.runRetries"
+            (input)="onRunnerNumericInput('runRetries', 0, 5, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1 sm:col-span-2">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Chụp màn hình</span>
+          <select
+            [value]="ps.runner.screenshotPolicy"
+            (change)="onScreenshotPolicyChange($event)"
+            [disabled]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white disabled:opacity-60"
+          >
+            <option value="every_step">Mỗi bước (mặc định)</option>
+            <option value="on_failure">Chỉ khi bước lỗi (tiết kiệm)</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2 sm:col-span-2 cursor-pointer">
+          <input
+            type="checkbox"
+            [checked]="ps.runner.headless"
+            (change)="setRunnerHeadless($event)"
+            [disabled]="!projectSettingsCanManage()"
+            class="rounded border-gray-600"
+          />
+          <span class="text-gray-300">Chạy trình duyệt headless</span>
+        </label>
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Viewport rộng</span>
+          <input
+            type="number"
+            min="320"
+            max="3840"
+            [value]="ps.runner.viewportWidth"
+            (input)="onRunnerNumericInput('viewportWidth', 320, 3840, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Viewport cao</span>
+          <input
+            type="number"
+            min="240"
+            max="2160"
+            [value]="ps.runner.viewportHeight"
+            (input)="onRunnerNumericInput('viewportHeight', 240, 2160, $event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white read-only:opacity-60"
+          />
+        </label>
+        <label class="block space-y-1 sm:col-span-2">
+          <span class="font-label-caps text-[10px] text-gray-500 uppercase tracking-wider">Base URL mặc định (URL navigate tương đối)</span>
+          <input
+            type="url"
+            placeholder="https://example.com"
+            [value]="ps.runner.defaultBaseUrl"
+            (input)="onProjectSettingsBaseUrlInput($event)"
+            [readonly]="!projectSettingsCanManage()"
+            class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white placeholder:text-gray-600 read-only:opacity-60"
+          />
+          <span class="text-[10px] text-gray-600">Ví dụ bước navigate <code class="text-gray-400">/login</code> sẽ mở <code class="text-gray-400">{{ ps.runner.defaultBaseUrl || '…' }}/login</code></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-dashboard-border bg-dashboard-bg/40 p-4 space-y-3">
+      <h3 class="text-white text-[13px] font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-dashboard-primary">smart_toy</span>
+        AI (gợi ý điền trường)
+      </h3>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          [checked]="ps.ai.enabled"
+          (change)="setAiEnabled($event)"
+          [disabled]="!projectSettingsCanManage()"
+          class="rounded border-gray-600"
+        />
+        <span class="text-gray-300">Bật AI fill / preview cho dự án này</span>
+      </label>
+      <p class="text-[10px] text-gray-600 leading-relaxed">
+        Khi tắt, preview và gợi ý Gemini bị chặn; vẫn có thể «Áp dụng» nếu đã có sẵn bộ fills từ client (không gọi model).
+      </p>
+    </section>
+  </div>
+  } @else {
+  <div class="text-gray-500 text-sm py-4">Không tải được form cài đặt.</div>
+  }
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'feature'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="flex items-center justify-between gap-2 mb-1">
+    <h2 class="text-white font-semibold text-[16px]">Feature</h2>
+    <button type="button" (click)="openCreateFeature()" class="bg-dashboard-primary hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5" [disabled]="!selectedProjectId()">
+      <span class="material-symbols-outlined text-[16px]">add</span>
+      Thêm
+    </button>
+  </div>
+  <p class="text-xs text-gray-500 mb-3">Dự án: {{ selectedProjectName() }}</p>
+  <div class="space-y-2">
+    @for (f of features(); track f.id) {
+      <div class="w-full px-3 py-2 rounded-lg border border-dashboard-border hover:bg-dashboard-border/30 transition-colors flex items-start justify-between gap-3">
+        <button type="button" (click)="selectFeature(f)" class="text-left flex-1">
+          <div class="text-white font-medium">{{ f.name }}</div>
+          <div class="text-xs text-gray-500">{{ f.description || (f.key ?? '') }}</div>
+        </button>
+        <div class="flex items-center gap-1 pt-0.5">
+          <button type="button" (click)="openEditFeature(f)" class="text-gray-500 hover:text-dashboard-primary p-1" title="Sửa">
+            <span class="material-symbols-outlined text-[18px]">edit</span>
+          </button>
+          <button type="button" (click)="openDeleteFeature(f)" class="text-gray-500 hover:text-red-400 p-1" title="Xóa">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+          </button>
+        </div>
+      </div>
+    } @empty {
+      <div class="text-gray-500">Chọn dự án để xem feature.</div>
+    }
+  </div>
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'runhistory'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-white font-semibold text-[16px]">Lịch sử chạy test</h2>
+      <p class="text-[11px] text-gray-500 mt-0.5">Các lần chạy trên dự án bạn có quyền truy cập — kèm dự án, chức năng (feature), testcase và người chạy.</p>
+    </div>
+    <button
+      type="button"
+      (click)="loadGlobalRunHistory()"
+      class="text-xs px-3 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40 shrink-0"
+      [disabled]="globalRunHistoryLoading()"
+    >
+      Tải lại
+    </button>
+  </div>
+  @if (globalRunHistoryLoading()) {
+  <div class="text-gray-500 text-sm py-8 text-center">Đang tải…</div>
+  } @else if (globalRunHistoryError()) {
+  <div class="text-red-400 text-sm py-4">{{ globalRunHistoryError() }}</div>
+  } @else {
+  <div class="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+    @for (row of globalRunHistory(); track row.id) {
+    <div class="rounded-xl border border-dashboard-border bg-dashboard-bg/40 overflow-hidden">
+      <div class="flex flex-wrap gap-3 p-3">
+        <div class="shrink-0 w-[120px] h-[72px] rounded-lg border border-dashboard-border bg-gray-900/80 flex items-center justify-center overflow-hidden">
+          @if (row.hasScreenshots) {
+          <span class="material-symbols-outlined text-gray-600 text-[32px]" title="Có ảnh chụp màn hình — mở chi tiết">image</span>
+          } @else {
+          <span class="material-symbols-outlined text-gray-700 text-[28px]">hide_image</span>
+          }
+        </div>
+        <div class="min-w-0 flex-1 space-y-1.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded border shrink-0"
+              [class.text-dashboard-success-text]="row.overallStatus === 'passed'"
+              [class.border-dashboard-success-text/30]="row.overallStatus === 'passed'"
+              [class.bg-dashboard-success-bg]="row.overallStatus === 'passed'"
+              [class.text-red-300]="row.overallStatus === 'failed'"
+              [class.border-red-500/30]="row.overallStatus === 'failed'"
+              [class.bg-red-500/10]="row.overallStatus === 'failed'"
+            >{{ row.overallStatus.toUpperCase() }}</span>
+            <span class="text-[12px] text-gray-200 font-medium leading-snug">{{ globalRunBreadcrumb(row) }}</span>
+          </div>
+          <div class="text-[11px] text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">folder</span>{{ row.projectName ?? '—' }}</span>
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">extension</span>{{ row.featureName ?? '—' }}</span>
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">description</span>{{ row.testCaseName ?? row.testCaseId }}</span>
+          </div>
+          <div class="text-[11px] text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">person</span>{{ row.triggeredByUsername?.trim() ? row.triggeredByUsername : '—' }}</span>
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span>{{ row.finishedAt | date: 'short' }}</span>
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">timer</span>{{ (row.durationMs / 1000).toFixed(1) }}s</span>
+            <span class="font-mono text-[10px] text-gray-600">TC: {{ row.testCaseId }}</span>
+          </div>
+        </div>
+        <div class="flex flex-col justify-center gap-2 shrink-0">
+          <button
+            type="button"
+            (click)="openHistoryDetail(row.id)"
+            class="text-xs font-medium text-dashboard-primary border border-dashboard-primary/50 hover:bg-dashboard-primary/10 px-3 py-1.5 rounded-lg whitespace-nowrap"
+          >
+            Chi tiết & ảnh
+          </button>
+        </div>
+      </div>
+    </div>
+    } @empty {
+    <div class="text-center text-gray-500 text-sm py-12 border border-dashed border-dashboard-border rounded-lg">Chưa có lần chạy nào.</div>
+    }
+  </div>
+  }
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'schedules'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-white font-semibold text-[16px]">Lịch chạy tự động</h2>
+    </div>
+    <button type="button" (click)="loadSchedules()" class="text-xs px-3 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40 shrink-0" [disabled]="schedulesLoading()">Tải lại</button>
+  </div>
+
+  <div class="rounded-xl border border-dashboard-border bg-dashboard-bg/30 p-4 mb-4 space-y-3">
+    <div class="text-white text-[13px] font-medium">{{ scheduleEditingId() ? 'Sửa lịch' : 'Thêm lịch mới' }}</div>
+    @if (!scheduleEditingId()) {
+    <div class="rounded-lg border border-gray-700/80 bg-gray-900/40 p-3 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span class="text-[11px] text-gray-400">Test case</span>
+        <div class="flex gap-1.5 shrink-0">
+          <button type="button" (click)="selectAllScheduleFormTcs()" class="text-[10px] px-2 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-800">Chọn hết</button>
+          <button type="button" (click)="clearScheduleFormTcSelection()" class="text-[10px] px-2 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-800">Bỏ chọn</button>
+        </div>
+      </div>
+      @if (!selectedProjectId()) {
+      <p class="text-amber-400/90 text-[11px]">Chọn dự án ở header để tải danh sách testcase.</p>
+      } @else if (schedulePickerLoading()) {
+      <p class="text-gray-500 text-xs">Đang tải testcase…</p>
+      } @else if (schedulePickerTestCases().length === 0) {
+      <p class="text-gray-500 text-xs">Không có testcase nào trong dự án này.</p>
+      } @else {
+      <div class="max-h-44 overflow-y-auto space-y-2 pr-1">
+        @for (g of schedulePickerGrouped(); track g.featureName) {
+        <div>
+          <div class="text-[10px] uppercase tracking-wide text-gray-500 mb-1">{{ g.featureName }}</div>
+          <div class="flex flex-wrap gap-2">
+            @for (tc of g.items; track tc.id) {
+            <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-200 rounded-md border border-gray-700/80 px-2 py-1 hover:bg-gray-800/60" [class.border-blue-500/60]="scheduleFormTcChecked(tc.id)" [class.bg-blue-950/30]="scheduleFormTcChecked(tc.id)">
+              <input type="checkbox" class="rounded border-gray-600" [checked]="scheduleFormTcChecked(tc.id)" (change)="toggleScheduleFormTc(tc.id)" />
+              <span>{{ tc.testCaseName }}</span>
+            </label>
+            }
+          </div>
+        </div>
         }
       </div>
-      <div class="social-links">
-        <a
-          href="https://github.com/angular/angular"
-          aria-label="Github"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="25"
-            height="24"
-            viewBox="0 0 25 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="Github"
-          >
-            <path
-              d="M12.3047 0C5.50634 0 0 5.50942 0 12.3047C0 17.7423 3.52529 22.3535 8.41332 23.9787C9.02856 24.0946 9.25414 23.7142 9.25414 23.3871C9.25414 23.0949 9.24389 22.3207 9.23876 21.2953C5.81601 22.0377 5.09414 19.6444 5.09414 19.6444C4.53427 18.2243 3.72524 17.8449 3.72524 17.8449C2.61064 17.082 3.81137 17.0973 3.81137 17.0973C5.04697 17.1835 5.69604 18.3647 5.69604 18.3647C6.79321 20.2463 8.57636 19.7029 9.27978 19.3881C9.39052 18.5924 9.70736 18.0499 10.0591 17.7423C7.32641 17.4347 4.45429 16.3765 4.45429 11.6618C4.45429 10.3185 4.9311 9.22133 5.72065 8.36C5.58222 8.04931 5.16694 6.79833 5.82831 5.10337C5.82831 5.10337 6.85883 4.77319 9.2121 6.36459C10.1965 6.09082 11.2424 5.95546 12.2883 5.94931C13.3342 5.95546 14.3801 6.09082 15.3644 6.36459C17.7023 4.77319 18.7328 5.10337 18.7328 5.10337C19.3942 6.79833 18.9789 8.04931 18.8559 8.36C19.6403 9.22133 20.1171 10.3185 20.1171 11.6618C20.1171 16.3888 17.2409 17.4296 14.5031 17.7321C14.9338 18.1012 15.3337 18.8559 15.3337 20.0084C15.3337 21.6552 15.3183 22.978 15.3183 23.3779C15.3183 23.7009 15.5336 24.0854 16.1642 23.9623C21.0871 22.3484 24.6094 17.7341 24.6094 12.3047C24.6094 5.50942 19.0999 0 12.3047 0Z"
-            />
-          </svg>
-        </a>
-        <a
-          href="https://x.com/angular"
-          aria-label="X"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="X"
-          >
-            <path
-              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-            />
-          </svg>
-        </a>
-        <a
-          href="https://www.youtube.com/channel/UCbn1OgGei-DV7aSRo_HaAiw"
-          aria-label="Youtube"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="29"
-            height="20"
-            viewBox="0 0 29 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="Youtube"
-          >
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M27.4896 1.52422C27.9301 1.96749 28.2463 2.51866 28.4068 3.12258C29.0004 5.35161 29.0004 10 29.0004 10C29.0004 10 29.0004 14.6484 28.4068 16.8774C28.2463 17.4813 27.9301 18.0325 27.4896 18.4758C27.0492 18.9191 26.5 19.2389 25.8972 19.4032C23.6778 20 14.8068 20 14.8068 20C14.8068 20 5.93586 20 3.71651 19.4032C3.11363 19.2389 2.56449 18.9191 2.12405 18.4758C1.68361 18.0325 1.36732 17.4813 1.20683 16.8774C0.613281 14.6484 0.613281 10 0.613281 10C0.613281 10 0.613281 5.35161 1.20683 3.12258C1.36732 2.51866 1.68361 1.96749 2.12405 1.52422C2.56449 1.08095 3.11363 0.76113 3.71651 0.596774C5.93586 0 14.8068 0 14.8068 0C14.8068 0 23.6778 0 25.8972 0.596774C26.5 0.76113 27.0492 1.08095 27.4896 1.52422ZM19.3229 10L11.9036 5.77905V14.221L19.3229 10Z"
-            />
-          </svg>
-        </a>
+      }
+      <div class="flex flex-wrap items-end gap-3 pt-1 border-t border-gray-800 mt-2">
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Lệch (giây)</label>
+          <input type="number" min="0" max="86400" [value]="scheduleStaggerSeconds()" (input)="onScheduleStaggerSecondsInput($event)" class="w-28 rounded-lg border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white focus:border-blue-500 focus:outline-none" />
+        </div>
+      </div>
+    </div>
+    }
+    @if (scheduleFormError()) { <p class="text-red-400 text-xs">{{ scheduleFormError() }}</p> }
+    <div class="space-y-3">
+      <div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-wide mb-1.5">Tần suất</div>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" (click)="setScheduleFrequencyMode('once')" [class.bg-blue-600]="scheduleFrequencyMode() === 'once'" [class.text-white]="scheduleFrequencyMode() === 'once'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'once'" [class.text-gray-400]="scheduleFrequencyMode() !== 'once'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Một lần (ngày giờ)</button>
+          <button type="button" (click)="setScheduleFrequencyMode('delay')" [class.bg-blue-600]="scheduleFrequencyMode() === 'delay'" [class.text-white]="scheduleFrequencyMode() === 'delay'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'delay'" [class.text-gray-400]="scheduleFrequencyMode() !== 'delay'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Sau N phút</button>
+          <button type="button" (click)="setScheduleFrequencyMode('daily')" [class.bg-blue-600]="scheduleFrequencyMode() === 'daily'" [class.text-white]="scheduleFrequencyMode() === 'daily'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'daily'" [class.text-gray-400]="scheduleFrequencyMode() !== 'daily'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Mỗi ngày</button>
+          <button type="button" (click)="setScheduleFrequencyMode('weekdays')" [class.bg-blue-600]="scheduleFrequencyMode() === 'weekdays'" [class.text-white]="scheduleFrequencyMode() === 'weekdays'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'weekdays'" [class.text-gray-400]="scheduleFrequencyMode() !== 'weekdays'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Thứ 2–6</button>
+          <button type="button" (click)="setScheduleFrequencyMode('weekly')" [class.bg-blue-600]="scheduleFrequencyMode() === 'weekly'" [class.text-white]="scheduleFrequencyMode() === 'weekly'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'weekly'" [class.text-gray-400]="scheduleFrequencyMode() !== 'weekly'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Chọn thứ</button>
+          <button type="button" (click)="setScheduleFrequencyMode('hourly')" [class.bg-blue-600]="scheduleFrequencyMode() === 'hourly'" [class.text-white]="scheduleFrequencyMode() === 'hourly'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'hourly'" [class.text-gray-400]="scheduleFrequencyMode() !== 'hourly'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Mỗi giờ</button>
+          <button type="button" (click)="setScheduleFrequencyMode('custom')" [class.bg-blue-600]="scheduleFrequencyMode() === 'custom'" [class.text-white]="scheduleFrequencyMode() === 'custom'" [class.bg-gray-800]="scheduleFrequencyMode() !== 'custom'" [class.text-gray-400]="scheduleFrequencyMode() !== 'custom'" class="px-2.5 py-1 rounded-md text-[11px] font-medium border border-gray-700 hover:border-gray-600">Nâng cao (cron)</button>
+        </div>
+      </div>
+
+      @if (scheduleFrequencyMode() === 'once') {
+      <div>
+        <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Ngày và giờ chạy</label>
+        <input type="datetime-local" [value]="scheduleOnceDatetime()" (input)="onScheduleOnceDatetimeInput($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none" />
+        <p class="text-[10px] text-gray-600 mt-1">Thời điểm hiển thị theo <span class="text-gray-500">múi giờ</span> bạn chọn bên dưới (UTC+0, UTC+7…). Phải ở tương lai khi lưu.</p>
+      </div>
+      }
+
+      @if (scheduleFrequencyMode() === 'delay') {
+      <div>
+        <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Số phút nữa thì chạy</label>
+        <input type="number" min="1" max="525600" [value]="scheduleDelayMinutes()" (input)="onScheduleDelayMinutesInput($event)" class="w-36 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none" />
+        <p class="text-[10px] text-gray-600 mt-1">Tính từ lúc bạn <span class="text-gray-500">Lưu lịch</span> (hoặc cập nhật cron). Sau khi chạy xong, lịch tự tắt.</p>
+      </div>
+      }
+
+      @if (scheduleFrequencyMode() === 'hourly') {
+      <div>
+        <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Phút trong mỗi giờ (0–59)</label>
+        <input type="number" min="0" max="59" [value]="scheduleHourlyMinute()" (input)="onScheduleHourlyMinuteInput($event)" class="w-32 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none" />
+        <p class="text-[10px] text-gray-600 mt-1">Ví dụ 0 = đầu mỗi giờ; 30 = lúc :30.</p>
+      </div>
+      }
+
+      @if (scheduleFrequencyMode() === 'daily' || scheduleFrequencyMode() === 'weekdays' || scheduleFrequencyMode() === 'weekly') {
+      <div>
+        <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Giờ chạy</label>
+        <input type="time" [value]="scheduleTimeLocal()" (input)="onScheduleTimeLocalInput($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none" />
+      </div>
+      }
+
+      @if (scheduleFrequencyMode() === 'weekly') {
+      <div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-wide mb-1.5">Ngày trong tuần (CN = chủ nhật)</div>
+        <div class="flex flex-wrap gap-1">
+          @for (d of [0, 1, 2, 3, 4, 5, 6]; track d) {
+          <button type="button" (click)="toggleScheduleWeekday(d)" [class.bg-blue-600]="scheduleWeekdays().includes(d)" [class.text-white]="scheduleWeekdays().includes(d)" [class.bg-gray-800]="!scheduleWeekdays().includes(d)" [class.text-gray-500]="!scheduleWeekdays().includes(d)" class="w-9 h-9 rounded-lg text-[11px] font-medium border border-gray-700">{{ weekdayShort(d) }}</button>
+          }
+        </div>
+      </div>
+      }
+
+      @if (scheduleFrequencyMode() === 'custom') {
+      <div>
+        <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Cron (5 trường: phút giờ ngày tháng thứ)</label>
+        <input type="text" [value]="scheduleFormCron()" (input)="onScheduleCronInput($event)" placeholder="30 8 * * *" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono text-white focus:border-blue-500 focus:outline-none" />
+      </div>
+      }
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Tên gợi nhớ</label>
+          <input type="text" [value]="scheduleFormName()" (input)="onScheduleNameInput($event)" placeholder="VD: Regression hàng ngày" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Múi giờ</label>
+          <select [value]="scheduleFormTz()" (change)="onScheduleTzChange($event)" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+            <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh</option>
+            <option value="UTC">UTC</option>
+            <option value="Asia/Bangkok">Asia/Bangkok</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" (click)="submitScheduleForm()" [disabled]="scheduleFormSaving()" class="rounded-lg bg-dashboard-primary px-4 py-2 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50">{{ scheduleEditingId() ? 'Cập nhật' : 'Thêm lịch' }}</button>
+      @if (scheduleEditingId()) {
+      <button type="button" (click)="cancelScheduleForm()" class="rounded-lg border border-dashboard-border px-4 py-2 text-xs text-gray-300 hover:bg-dashboard-border/30">Huỷ sửa</button>
+      }
+    </div>
+  </div>
+
+  @if (schedulesLoading()) {
+  <div class="text-gray-500 text-sm py-8 text-center">Đang tải…</div>
+  } @else if (schedulesError()) {
+  <div class="text-red-400 text-sm py-4">{{ schedulesError() }}</div>
+  } @else {
+  <div class="overflow-x-auto rounded-lg border border-dashboard-border">
+    <table class="w-full text-left text-[12px] border-collapse min-w-[720px]">
+      <thead class="bg-gray-800/60 text-[10px] uppercase tracking-wider text-gray-400 border-b border-dashboard-border">
+        <tr>
+          <th class="px-2 py-2 w-14">Bật</th>
+          <th class="px-2 py-2">Dự án / Feature / Test case</th>
+          <th class="px-2 py-2">Lịch</th>
+          <th class="px-2 py-2">TZ</th>
+          <th class="px-2 py-2">Chạy gần nhất</th>
+          <th class="px-2 py-2">Lần tới</th>
+          <th class="px-2 py-2">Lỗi gần nhất</th>
+          <th class="px-2 py-2 w-24"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-dashboard-border">
+        @for (s of schedulesList(); track s.id) {
+        <tr class="hover:bg-dashboard-border/15">
+          <td class="px-2 py-2">
+            <button type="button" (click)="toggleScheduleEnabled(s)" [class.text-dashboard-success-text]="s.enabled" [class.text-gray-600]="!s.enabled" class="p-1 rounded hover:bg-dashboard-border/30" [attr.title]="s.enabled ? 'Tắt' : 'Bật'">
+              <span class="material-symbols-outlined text-[20px]">{{ s.enabled ? 'toggle_on' : 'toggle_off' }}</span>
+            </button>
+          </td>
+          <td class="px-2 py-2 text-gray-200">
+            <div class="font-medium flex flex-wrap items-center gap-1.5">{{ s.projectName ?? '—' }} @if (s.scheduleGroupId) { <span class="text-[9px] font-normal uppercase tracking-wide px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">nhóm</span> }</div>
+            <div class="text-gray-500 text-[11px]">{{ s.featureName ?? '—' }} · {{ s.testCaseName ?? s.testCaseId }} @if ((s.staggerSeconds ?? 0) > 0) { <span class="text-gray-600">· lệch +{{ s.staggerSeconds }}s</span> }</div>
+          </td>
+          <td class="px-2 py-2">
+            <div class="text-gray-200 text-[12px]">{{ scheduleHumanSummary(s.cronExpression, s.timezone) }}</div>
+            <div class="font-mono text-[10px] text-amber-200/70 mt-0.5">{{ s.cronExpression }}</div>
+          </td>
+          <td class="px-2 py-2 text-gray-500">{{ s.timezone }}</td>
+          <td class="px-2 py-2 text-gray-400">@if (s.lastRunAt) { {{ s.lastRunAt | date: 'short' }} } @else { — }</td>
+          <td class="px-2 py-2 text-gray-400">@if (s.nextRunAt) { {{ s.nextRunAt | date: 'short' }} } @else { — }</td>
+          <td class="px-2 py-2 text-red-300/90 max-w-[180px] truncate" [title]="s.lastError">{{ (s.lastError || '').trim() ? s.lastError : '—' }}</td>
+          <td class="px-2 py-2 text-right whitespace-nowrap">
+            <button type="button" (click)="editScheduleRow(s)" class="text-dashboard-primary hover:underline mr-2">Sửa</button>
+            <button type="button" (click)="deleteScheduleRow(s)" class="text-red-400 hover:underline">Xóa</button>
+          </td>
+        </tr>
+        } @empty {
+        <tr><td colspan="8" class="px-3 py-10 text-center text-gray-500">Chưa có lịch nào.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</div>
+
+@if (currentSidebarSection() === 'reports') {
+<div class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4 space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-white font-semibold text-[16px] flex items-center gap-2">
+        <span class="material-symbols-outlined text-[22px] text-dashboard-primary">monitoring</span>
+        Báo cáo thực thi
+      </h2>
+      <p class="text-[11px] text-gray-500 mt-0.5">Tổng hợp theo ngày (UTC), testcase lỗi nhiều nhất và thông điệp lỗi lặp lại.</p>
+    </div>
+    <button type="button" (click)="loadReports()" class="text-xs px-3 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40 shrink-0" [disabled]="reportsLoading()">Tải lại</button>
+  </div>
+
+  <div class="flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Khoảng thời gian</label>
+      <select [value]="reportDays()" (change)="onReportDaysChange($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none min-w-[140px]">
+        <option [value]="7">7 ngày</option>
+        <option [value]="14">14 ngày</option>
+        <option [value]="30">30 ngày</option>
+        <option [value]="60">60 ngày</option>
+        <option [value]="90">90 ngày</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[10px] text-gray-500 uppercase tracking-wide mb-1">Dự án</label>
+      <select [value]="reportProjectId()" (change)="onReportProjectFilterChange($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none min-w-[200px]">
+        <option value="">Tất cả dự án</option>
+        @for (p of projects(); track p.id) {
+        <option [value]="p.id">{{ p.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (reportsLoading()) {
+  <div class="text-gray-500 text-sm py-10 text-center">Đang tải báo cáo…</div>
+  } @else if (reportsError()) {
+  <div class="text-red-400 text-sm py-4">{{ reportsError() }}</div>
+  } @else if (reportSummary(); as rep) {
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/50 p-3">
+      <div class="text-[10px] uppercase text-gray-500 tracking-wide">Tổng lần chạy</div>
+      <div class="text-2xl font-semibold text-white mt-1">{{ rep.totals.totalRuns }}</div>
+    </div>
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/50 p-3">
+      <div class="text-[10px] uppercase text-gray-500 tracking-wide">Đạt</div>
+      <div class="text-2xl font-semibold text-emerald-400 mt-1">{{ rep.totals.passed }}</div>
+    </div>
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/50 p-3">
+      <div class="text-[10px] uppercase text-gray-500 tracking-wide">Lỗi</div>
+      <div class="text-2xl font-semibold text-red-400 mt-1">{{ rep.totals.failed }}</div>
+    </div>
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/50 p-3">
+      <div class="text-[10px] uppercase text-gray-500 tracking-wide">Tỷ lệ đạt</div>
+      <div class="text-2xl font-semibold text-sky-400 mt-1">{{ rep.totals.passRate }}%</div>
+    </div>
+  </div>
+
+  @if (rep.series.length === 0) {
+  <div class="text-center text-gray-500 text-sm py-8 border border-dashed border-dashboard-border rounded-lg">Chưa có dữ liệu chạy trong khoảng thời gian này.</div>
+  } @else {
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/30 p-3 h-[280px]">
+      <canvas #reportBarCanvas class="max-h-[260px]"></canvas>
+    </div>
+    <div class="rounded-lg border border-dashboard-border bg-gray-950/30 p-3 h-[280px]">
+      <canvas #reportLineCanvas class="max-h-[260px]"></canvas>
+    </div>
+  </div>
+  }
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-dashboard-border overflow-hidden">
+      <div class="px-3 py-2 bg-gray-800/50 text-[11px] font-semibold text-gray-300 uppercase tracking-wide">Test case lỗi nhiều nhất</div>
+      <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+        <table class="w-full text-left text-[12px] border-collapse min-w-[480px]">
+          <thead class="sticky top-0 bg-gray-900/95 text-[10px] text-gray-500 uppercase border-b border-dashboard-border">
+            <tr>
+              <th class="px-2 py-2">Test case</th>
+              <th class="px-2 py-2">Dự án</th>
+              <th class="px-2 py-2 text-right">Lỗi / Tổng</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dashboard-border">
+            @for (row of rep.topFailingTestCases; track row.testCaseId) {
+            <tr class="hover:bg-dashboard-border/10">
+              <td class="px-2 py-2 text-gray-200">{{ row.testCaseName ?? row.testCaseId }}</td>
+              <td class="px-2 py-2 text-gray-500">{{ row.projectName ?? '—' }}</td>
+              <td class="px-2 py-2 text-right font-mono text-amber-200/90">{{ row.failedRuns }} / {{ row.totalRuns }}</td>
+            </tr>
+            } @empty {
+            <tr><td colspan="3" class="px-3 py-6 text-center text-gray-500">Không có lần chạy lỗi trong khoảng này.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="rounded-lg border border-dashboard-border overflow-hidden">
+      <div class="px-3 py-2 bg-gray-800/50 text-[11px] font-semibold text-gray-300 uppercase tracking-wide">Xu hướng lỗi (thông điệp lặp lại)</div>
+      <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+        <table class="w-full text-left text-[12px] border-collapse min-w-[520px]">
+          <thead class="sticky top-0 bg-gray-900/95 text-[10px] text-gray-500 uppercase border-b border-dashboard-border">
+            <tr>
+              <th class="px-2 py-2 w-14">#</th>
+              <th class="px-2 py-2">Thông điệp</th>
+              <th class="px-2 py-2 text-right">Lần</th>
+              <th class="px-2 py-2">Gần nhất</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dashboard-border">
+            @for (e of rep.errorTrends; track e.errorKey) {
+            <tr class="hover:bg-dashboard-border/10 align-top">
+              <td class="px-2 py-2 text-gray-500">{{ $index + 1 }}</td>
+              <td class="px-2 py-2 text-gray-200 whitespace-pre-wrap break-words max-w-md">{{ e.errorKey }}</td>
+              <td class="px-2 py-2 text-right font-mono text-red-300/90">{{ e.count }}</td>
+              <td class="px-2 py-2 text-gray-500 text-[11px]">{{ e.lastSeenAt | date: 'short' }}</td>
+            </tr>
+            } @empty {
+            <tr><td colspan="4" class="px-3 py-6 text-center text-gray-500">Chưa có mẫu lỗi gộp.</td></tr>
+            }
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
+  }
+</div>
+}
+
+<div [class.hidden]="currentSidebarSection() !== 'testcase'">
+<!-- Header -->
+<div class="flex items-center gap-4">
+<h2 class="font-semibold text-[20px] text-white flex items-center gap-2">
+                            {{ selectedTestCaseLabel() }}
+                            <button class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-dashboard-border"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+<button class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-dashboard-border"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+</h2>
+</div>
+<!-- MatTabs -->
+<div class="border-b border-dashboard-border flex gap-4 px-2">
+<button
+  type="button"
+  (click)="setTestCaseTab('steps')"
+  class="pb-2 text-[13px] transition-colors border-b-2"
+  [class.text-dashboard-primary]="testCaseTab() === 'steps'"
+  [class.font-medium]="testCaseTab() === 'steps'"
+  [class.border-dashboard-primary]="testCaseTab() === 'steps'"
+  [class.text-gray-400]="testCaseTab() !== 'steps'"
+  [class.hover:text-white]="testCaseTab() !== 'steps'"
+  [class.border-transparent]="testCaseTab() !== 'steps'"
+>
+  Chi tiết ({{ actions().length }})
+</button>
+<button
+  type="button"
+  (click)="setTestCaseTab('data')"
+  class="pb-2 text-[13px] transition-colors border-b-2"
+  [class.text-dashboard-primary]="testCaseTab() === 'data'"
+  [class.font-medium]="testCaseTab() === 'data'"
+  [class.border-dashboard-primary]="testCaseTab() === 'data'"
+  [class.text-gray-400]="testCaseTab() !== 'data'"
+  [class.hover:text-white]="testCaseTab() !== 'data'"
+  [class.border-transparent]="testCaseTab() !== 'data'"
+>
+  Dữ liệu
+</button>
+<button
+  type="button"
+  (click)="setTestCaseTab('settings')"
+  class="pb-2 text-[13px] transition-colors border-b-2"
+  [class.text-dashboard-primary]="testCaseTab() === 'settings'"
+  [class.font-medium]="testCaseTab() === 'settings'"
+  [class.border-dashboard-primary]="testCaseTab() === 'settings'"
+  [class.text-gray-400]="testCaseTab() !== 'settings'"
+  [class.hover:text-white]="testCaseTab() !== 'settings'"
+  [class.border-transparent]="testCaseTab() !== 'settings'"
+>
+  Cài đặt
+</button>
+<button
+  type="button"
+  (click)="setTestCaseTab('history')"
+  class="pb-2 text-[13px] transition-colors border-b-2"
+  [class.text-dashboard-primary]="testCaseTab() === 'history'"
+  [class.font-medium]="testCaseTab() === 'history'"
+  [class.border-dashboard-primary]="testCaseTab() === 'history'"
+  [class.text-gray-400]="testCaseTab() !== 'history'"
+  [class.hover:text-white]="testCaseTab() !== 'history'"
+  [class.border-transparent]="testCaseTab() !== 'history'"
+>
+  Lịch sử
+</button>
+</div>
+<!-- Steps Content (Split Layout internally) -->
+<div [class.hidden]="testCaseTab() !== 'steps'" class="flex gap-4 h-[400px]">
+<!-- Left Explorer (Project -> Features -> Testcases) with VSCode-like toolbar on top -->
+<div class="w-56 bg-dashboard-surface rounded-lg border border-dashboard-border overflow-hidden flex flex-col">
+  <div class="px-2 py-1.5 border-b border-dashboard-border bg-gray-800/30 flex items-center justify-between">
+    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider"></div>
+    <div class="flex items-center">
+      <button type="button" (click)="openCreateTestCase()" class="w-7 h-7 grid place-items-center rounded hover:bg-gray-800/70 text-gray-300 disabled:opacity-40" [disabled]="!selectedFeatureId()" title="New File (Testcase)">
+        <span class="material-symbols-outlined text-[18px]">note_add</span>
+      </button>
+      <button type="button" (click)="openCreateFeature()" class="w-7 h-7 grid place-items-center rounded hover:bg-gray-800/70 text-gray-300 disabled:opacity-40" [disabled]="!selectedProjectId()" title="New Folder (Feature)">
+        <span class="material-symbols-outlined text-[18px]">create_new_folder</span>
+      </button>
+      <button type="button" (click)="refreshExplorer()" class="w-7 h-7 grid place-items-center rounded hover:bg-gray-800/70 text-gray-300 disabled:opacity-40" [disabled]="!selectedProjectId()" title="Refresh">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+      </button>
+      <button type="button" (click)="collapseAllExplorer()" class="w-7 h-7 grid place-items-center rounded hover:bg-gray-800/70 text-gray-300 disabled:opacity-40" [disabled]="explorerExpandedFeatureIds().length === 0" title="Collapse All">
+        <span class="material-symbols-outlined text-[18px]">unfold_less</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-2 border-b border-dashboard-border">
+    <input
+      type="text"
+      class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none"
+      placeholder="Tìm..."
+      [value]="explorerQuery()"
+      (input)="onExplorerQueryInput($event)"
+    />
+  </div>
+
+  @if (selectedProjectId()) {
+  <div class="px-2 py-2 border-b border-dashboard-border flex flex-wrap items-center gap-2 bg-gray-900/50">
+    @if (!explorerBatchSelectMode()) {
+    <button
+      type="button"
+      (click)="enterExplorerBatchMode()"
+      class="text-[11px] px-2.5 py-1 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/50 inline-flex items-center gap-1 w-full justify-center"
+      title="Bật chế độ chọn nhiều testcase để chạy tuần tự"
+    >
+      <span class="material-symbols-outlined text-[14px]">checklist</span>
+      Chạy nhiều testcase
+    </button>
+    } @else {
+    <button
+      type="button"
+      (click)="runSelectedBatch()"
+      [disabled]="batchSelectCount() === 0"
+      class="text-[11px] px-2.5 py-1 rounded-lg bg-dashboard-primary text-white hover:bg-blue-600 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1"
+      title="Chạy tuần tự các testcase đã chọn"
+    >
+      <span class="material-symbols-outlined text-[14px]">playlist_play</span>
+      Chạy đã chọn ({{ batchSelectCount() }})
+    </button>
+    <button
+      type="button"
+      (click)="exitExplorerBatchMode()"
+      class="text-[10px] px-2 py-1 rounded-lg border border-dashboard-border text-gray-400 hover:text-white hover:bg-dashboard-border/40"
+      title="Tắt chế độ chọn nhiều"
+    >
+      Xong
+    </button>
+    <span class="text-[10px] text-gray-500 w-full">Đánh dấu ô vuông rồi bấm «Chạy đã chọn».</span>
+    }
+  </div>
+  }
+
+  <div class="flex-1 overflow-y-auto min-h-0 px-2 py-2.5">
+    <div class="px-1.5 py-1.5 mb-2.5 flex items-center gap-1.5 text-[12px] text-gray-300 rounded-md border border-transparent">
+      <span class="material-symbols-outlined text-[16px] text-gray-500 shrink-0">folder</span>
+      <span class="truncate font-medium leading-snug" title="{{ selectedProjectName() }}">{{ selectedProjectName() }}</span>
+    </div>
+
+    <div class="flex flex-col gap-2">
+    @for (f of explorerFilteredFeatures(); track f.id) {
+      <div class="rounded-md">
+        <div class="flex items-stretch gap-0.5 px-0.5">
+          <button
+            type="button"
+            (click)="toggleExplorerFeature(f)"
+            class="w-7 shrink-0 min-h-[2.25rem] grid place-items-center rounded-md hover:bg-dashboard-border/50 text-gray-400 self-start"
+            [attr.aria-label]="isExplorerFeatureExpanded(f.id) ? 'Collapse' : 'Expand'"
+            title="{{ isExplorerFeatureExpanded(f.id) ? 'Thu gọn' : 'Mở' }}"
+          >
+            <span class="material-symbols-outlined text-[18px]">
+              {{ isExplorerFeatureExpanded(f.id) ? 'expand_more' : 'chevron_right' }}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            (click)="selectExplorerFeature(f.id)"
+            class="flex-1 flex items-center gap-1.5 px-2 py-1.5 min-h-[2.25rem] rounded-md hover:bg-dashboard-border/50 text-[12px] text-left leading-snug"
+            [class.bg-dashboard-primary/10]="selectedFeatureId() === f.id"
+            [class.text-dashboard-primary]="selectedFeatureId() === f.id"
+            title="{{ f.name }}"
+          >
+            <span class="material-symbols-outlined text-[16px] text-gray-500 shrink-0">
+              {{ isExplorerFeatureExpanded(f.id) ? 'folder_open' : 'folder' }}
+            </span>
+            <span class="truncate">{{ f.name }}</span>
+          </button>
+        </div>
+
+        @if (isExplorerFeatureExpanded(f.id)) {
+          <div class="mt-1.5 ml-1 pl-6 pr-1 pb-1 border-l border-dashboard-border/60 space-y-1.5">
+            @if (explorerLoadingFeatureIds().includes(f.id)) {
+              <div class="text-xs text-gray-500 px-2 py-1.5">Đang tải…</div>
+            } @else {
+              @for (tc of explorerTestCasesForFeature(f.id); track tc.id) {
+                <div
+                  class="w-full flex items-center rounded-md hover:bg-dashboard-border/40 group/tcrow border border-transparent"
+                  [class.gap-1.5]="explorerBatchSelectMode()"
+                  [class.bg-dashboard-primary/15]="selectedTestCaseId() === tc.id"
+                  [class.border-dashboard-primary/25]="selectedTestCaseId() === tc.id"
+                >
+                  @if (explorerBatchSelectMode()) {
+                  <label class="shrink-0 pl-1 cursor-pointer flex items-center" (click)="$event.stopPropagation()">
+                    <input
+                      type="checkbox"
+                      class="rounded border-dashboard-border w-3.5 h-3.5 accent-dashboard-primary"
+                      [checked]="isExplorerBatchSelected(tc.id)"
+                      (change)="toggleExplorerBatchSelect(tc.id, $event)"
+                    />
+                  </label>
+                  }
+                  <button
+                    type="button"
+                    (click)="selectExplorerTestCase(f.id, tc)"
+                    class="flex-1 min-w-0 text-left px-2 py-1.5 min-h-[2.25rem] rounded-md flex items-center gap-2 text-[12px] leading-snug"
+                    [class.text-dashboard-primary]="selectedTestCaseId() === tc.id"
+                    [class.text-gray-200]="selectedTestCaseId() !== tc.id"
+                  >
+                    <span class="material-symbols-outlined text-[16px] text-gray-500 shrink-0">draft</span>
+                    <span class="truncate">{{ tc.key ?? tc.id }} — {{ tc.name }}</span>
+                  </button>
+                  @if (!explorerBatchSelectMode()) {
+                  <div class="flex shrink-0 items-center opacity-0 group-hover/tcrow:opacity-100 transition-opacity pr-0.5">
+                    <button
+                      type="button"
+                      (click)="openEditTestCase(tc); $event.stopPropagation()"
+                      class="text-gray-500 hover:text-dashboard-primary p-1 rounded"
+                      title="Sửa test case"
+                    >
+                      <span class="material-symbols-outlined text-[17px]">edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="openDeleteTestCase(tc); $event.stopPropagation()"
+                      class="text-gray-500 hover:text-red-400 p-1 rounded"
+                      title="Xóa test case"
+                    >
+                      <span class="material-symbols-outlined text-[17px]">delete</span>
+                    </button>
+                  </div>
+                  }
+                </div>
+              } @empty {
+                <div class="text-xs text-gray-500 px-2 py-1.5">Chưa có test case.</div>
+              }
+            }
+          </div>
+        }
+      </div>
+    } @empty {
+      <div class="text-[12px] text-gray-500 px-2 py-2">Chọn dự án để xem feature.</div>
+    }
+    </div>
+  </div>
+</div>
+<!-- Right MatTable (Steps Details) -->
+<div class="flex-1 bg-dashboard-surface rounded-lg border border-dashboard-border overflow-hidden flex flex-col">
+<div class="p-2 border-b border-dashboard-border flex flex-wrap items-center justify-between gap-2 bg-gray-800/30">
+<div class="text-[11px] text-gray-500 uppercase tracking-wide font-label-caps">Danh sách bước</div>
+<div class="flex flex-wrap items-center gap-2">
+<label class="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer select-none shrink-0" title="Chạy Puppeteer để đọc label/placeholder (chậm, cần bước navigate đúng)">
+<input type="checkbox" class="rounded border-dashboard-border" [checked]="aiFillUseDom()" (change)="toggleAiFillUseDom($event)" />
+Thu DOM
+</label>
+<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-40" title="Gemini gợi ý giá trị cho bước Gõ text đang trống">
+<span class="material-symbols-outlined text-[16px]">auto_awesome</span>
+AI điền
+</button>
+@if (aiFillDraft()?.fills?.length) {
+<button type="button" (click)="aiFillApply()" [disabled]="aiFillLoading()" class="border border-green-500/50 text-green-300 hover:bg-green-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Áp dụng</button>
+}
+<button type="button" (click)="openAddStep()" class="bg-dashboard-primary hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">add</span>
+Thêm bước
+</button>
+</div>
+</div>
+@if (aiFillError()) {
+<p class="text-red-400 text-xs px-3 py-1.5 border-b border-dashboard-border bg-red-500/5">{{ aiFillError() }}</p>
+}
+@if (aiFillDraft()?.fills?.length) {
+<div class="px-3 py-2 border-b border-dashboard-border bg-blue-950/20 text-[11px] space-y-1.5">
+<div class="text-gray-500">Đề xuất</div>
+<ul class="text-gray-300 space-y-1 max-h-28 overflow-y-auto">
+@for (f of aiFillDraft()!.fills; track f.actionId) {
+<li class="flex flex-wrap gap-x-2 gap-y-0.5"><span class="text-gray-500 shrink-0">{{ aiFillRowLabel(f.actionId) }}</span><span class="text-gray-600">→</span><code class="text-green-300 break-all">{{ f.value }}</code>@if (f.notes) { <span class="text-gray-500 w-full">({{ f.notes }})</span> }</li>
+}
+</ul>
+</div>
+}
+<div class="overflow-x-auto overflow-y-visible">
+<table class="w-full text-left border-collapse text-[13px]">
+<thead class="bg-gray-800/50 font-label-caps text-[11px] text-gray-400 uppercase tracking-wider border-b border-dashboard-border">
+<tr>
+<th class="px-3 py-2 w-10 text-center">#</th>
+<th class="px-3 py-2">Hành động</th>
+<th class="px-3 py-2">Thông tin</th>
+<th class="px-3 py-2">Kỳ vọng</th>
+<th class="px-3 py-2 w-12"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-dashboard-border">
+@for (a of actions(); track a.id) {
+<tr
+  draggable="true"
+  (dragstart)="onDragStart(a.id)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop(a.id)"
+  class="hover:bg-dashboard-border/20 transition-colors"
+  [class.opacity-60]="!a.enabled"
+>
+<td class="px-3 py-2 text-center text-gray-500"><div class="flex items-center justify-center gap-1 cursor-grab group/drag"><span class="material-symbols-outlined text-[16px] text-gray-600 group-hover/drag:text-gray-400 transition-colors">drag_indicator</span> {{ a.order + 1 }}</div></td>
+<td class="px-3 py-2"><span class="bg-gray-800 px-1.5 py-0.5 rounded border border-gray-700 text-blue-300 font-code-mono text-[12px]">{{ kindLabel(a.kind) }}</span></td>
+<td class="px-3 py-2 text-gray-300 break-all">{{ actionDetailRow(a) }}</td>
+<td class="px-3 py-2 text-gray-400">{{ a.expectation || '-' }}</td>
+<td class="px-3 py-2 text-right relative">
+<button type="button" class="text-gray-500 hover:text-white" (click)="toggleMenu(a.id, $event)"><span class="material-symbols-outlined text-[18px]">more_vert</span></button>
+</td>
+</tr>
+} @empty {
+<tr><td colspan="5" class="px-3 py-10 text-center text-gray-500">Chưa có bước. Bấm «Thêm bước» để tạo.</td></tr>
+}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Bottom Config Details -->
+<div class="mt-4 grid grid-cols-2 gap-4 bg-dashboard-surface p-3 rounded-lg border border-dashboard-border">
+<div class="space-y-3">
+<div>
+<label class="block font-label-caps text-[11px] text-gray-400 mb-1">Mô tả</label>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-16 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Nhập mô tả test case...">Kiểm tra luồng đăng nhập với tài khoản hợp lệ.</textarea>
+</div>
+<div>
+<label class="block font-label-caps text-[11px] text-gray-400 mb-1">Tags</label>
+<div class="flex gap-2 flex-wrap">
+<span class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded-full text-xs text-gray-300 flex items-center gap-1">P0 <span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">close</span></span>
+<span class="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded-full text-xs text-gray-300 flex items-center gap-1">Auth <span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">close</span></span>
+<span class="px-2 py-0.5 border border-dashed border-gray-600 rounded-full text-xs text-gray-500 cursor-pointer hover:text-white flex items-center"><span class="material-symbols-outlined text-[14px]">add</span> Add</span>
+</div>
+</div>
+</div>
+
+@if (menuOpenForId()) {
+  <div class="fixed inset-0 z-[250]" (click)="closeMenu()">
+    <div
+      class="fixed w-40 bg-gray-900 border border-gray-700 rounded-lg shadow-xl overflow-hidden"
+      [style.left.px]="menuX()"
+      [style.top.px]="menuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        type="button"
+        class="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-800"
+        (click)="openEditStep(actions().find(a => a.id === menuOpenForId())!); closeMenu()"
+      >
+        Sửa
+      </button>
+      <button
+        type="button"
+        class="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-800"
+        (click)="openDeleteStep(menuOpenForId()!); closeMenu()"
+      >
+        Xóa
+      </button>
+      <button
+        type="button"
+        class="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-gray-800"
+        (click)="toggleEnabled(actions().find(a => a.id === menuOpenForId())!); closeMenu()"
+      >
+        {{ (actions().find(a => a.id === menuOpenForId())?.enabled ?? true) ? 'Tạm tắt' : 'Bật lại' }}
+      </button>
+    </div>
+  </div>
+}
+<div class="space-y-3">
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block font-label-caps text-[11px] text-gray-400 mb-1">Độ ưu tiên</label>
+<select class="w-full bg-dashboard-bg border border-dashboard-border rounded p-1.5 text-[13px] text-gray-300 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none appearance-none">
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</div>
+<div>
+<label class="block font-label-caps text-[11px] text-gray-400 mb-1">Trạng thái</label>
+<select class="w-full bg-dashboard-bg border border-dashboard-border rounded p-1.5 text-[13px] text-gray-300 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none appearance-none">
+<option>Active</option>
+<option>Draft</option>
+<option>Deprecated</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-[11px] text-gray-400 mb-1">Điều kiện tiên quyết</label>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded p-2 text-[13px] text-gray-300 h-10 focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none transition-all resize-none" placeholder="Nhập pre-requisite..."></textarea>
+</div>
+</div>
+</div>
+<!-- AI Chat Box -->
+<div class="bg-blue-900/10 border border-blue-900/30 rounded-lg p-3 relative overflow-hidden">
+<div class="absolute right-0 top-0 opacity-10 pointer-events-none text-8xl -mt-4 -mr-4 text-blue-500">
+<span class="material-symbols-outlined" data-weight="fill">smart_toy</span>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-dashboard-primary text-[18px]">auto_awesome</span>
+<span class="font-medium text-[14px] text-blue-300">AI Trợ lý TestFlow</span>
+</div>
+<div class="flex gap-2 mb-2 flex-wrap">
+<button type="button" (click)="setQuickPrompt('Viết mô tả test case chi tiết cho TC-001 đăng nhập thành công (tiếng Việt).')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Tạo test case</button>
+<button type="button" (click)="setQuickPrompt('Đề xuất 3 bước Puppeteer cụ thể (selector + hành động) để kiểm tra sau khi đăng nhập thành công.')" class="px-2.5 py-1 bg-dashboard-bg border border-dashboard-border rounded-full text-[11px] text-gray-300 hover:border-dashboard-primary hover:text-dashboard-primary transition-colors">Tạo bước</button>
+</div>
+<div class="relative">
+<input
+  class="w-full bg-dashboard-bg border border-dashboard-border rounded-lg pl-3 pr-10 py-2 text-[13px] text-white focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none disabled:opacity-50"
+  placeholder="Ví dụ: 'Tạo bước kiểm tra thông báo lỗi khi sai mật khẩu'..."
+  type="text"
+  [value]="chatPrompt()"
+  (input)="onChatInput($event)"
+  (keydown.enter)="sendChat(); $event.preventDefault()"
+  [disabled]="aiLoading()"
+/>
+<button type="button" (click)="sendChat()" [disabled]="aiLoading()" class="absolute right-2 top-1/2 -translate-y-1/2 text-dashboard-primary p-0.5 hover:bg-dashboard-border/50 rounded disabled:opacity-40" aria-label="Gửi tới Gemini">
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+@if (aiLoading()) {
+<p class="text-blue-300 text-xs mt-2">Đang gọi Gemini…</p>
+}
+@if (aiError()) {
+<p class="text-red-400 text-xs mt-2 leading-snug">{{ aiError() }}</p>
+}
+@if (aiReply()) {
+<div class="mt-3 pt-3 border-t border-blue-900/40 text-[12px] text-gray-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{{ aiReply() }}</div>
+}
+<div [class.hidden]="currentSidebarSection() !== 'explorer'" class="hidden">
+<div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+<div class="rounded-lg border border-dashboard-border bg-dashboard-bg/30 p-2 max-h-[70vh] overflow-y-auto">
+<div class="px-2 py-2 flex items-center gap-2">
+  <input
+    type="text"
+    class="flex-1 bg-dashboard-bg border border-dashboard-border rounded-lg px-2 py-1.5 text-[12px] text-white focus:border-dashboard-primary focus:ring-1 focus:ring-dashboard-primary outline-none"
+    placeholder="Tìm project / feature / testcase…"
+    [value]="explorerQuery()"
+    (input)="onExplorerQueryInput($event)"
+  />
+  <button type="button" (click)="openCreateFeature()" class="text-xs px-2 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40" [disabled]="!selectedProjectId()" title="Tạo nhanh feature">
+    + Feature
+  </button>
+</div>
+<div class="text-[11px] text-gray-500 uppercase tracking-wider px-2 py-1">Dự án</div>
+<div class="px-2 py-2 flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-500 text-[18px]">folder</span>
+<span class="text-gray-200 font-medium">{{ selectedProjectName() }}</span>
+</div>
+<button type="button" (click)="openSidebarSection('project')" class="text-xs text-dashboard-primary hover:underline">Quản lý</button>
+</div>
+<div class="text-[11px] text-gray-500 uppercase tracking-wider px-2 py-1 mt-2">Features</div>
+@for (f of explorerFilteredFeatures(); track f.id) {
+  <div class="px-2 py-1.5 rounded hover:bg-dashboard-border/30 flex items-center justify-between gap-2">
+    <button type="button" (click)="toggleExplorerFeature(f)" class="flex items-center gap-2 text-left flex-1">
+      <span class="material-symbols-outlined text-gray-500 text-[18px]">
+        {{ isExplorerFeatureExpanded(f.id) ? 'folder_open' : 'folder' }}
+      </span>
+      <span class="text-gray-200 truncate" title="{{ f.name }}">{{ f.name }}</span>
+    </button>
+    <div class="flex items-center gap-1">
+      <button type="button" (click)="openQuickCreateTestCaseForFeature(f)" class="text-[11px] px-2 py-1 rounded border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40" title="Tạo nhanh test case">
+        + TC
+      </button>
+      <button type="button" (click)="selectFeature(f)" class="text-[11px] text-dashboard-primary hover:underline px-1" title="Mở trong mục Feature">
+        Mở
+      </button>
+    </div>
+  </div>
+
+  @if (isExplorerFeatureExpanded(f.id)) {
+    <div class="pl-7 pr-2 pb-2 space-y-1">
+      @if (explorerLoadingFeatureIds().includes(f.id)) {
+        <div class="text-xs text-gray-500 px-2 py-1">Đang tải…</div>
+      } @else {
+        @for (tc of explorerTestCasesForFeature(f.id); track tc.id) {
+          <div class="flex items-center gap-1 rounded hover:bg-dashboard-border/30 group/exptc">
+            <button type="button" (click)="selectTestCase(tc)" class="flex-1 min-w-0 text-left px-2 py-1 flex items-center gap-2" [class.bg-dashboard-primary/10]="selectedTestCaseId() === tc.id" [class.text-dashboard-primary]="selectedTestCaseId() === tc.id">
+              <span class="material-symbols-outlined text-[16px] shrink-0">description</span>
+              <span class="truncate">{{ tc.key ?? tc.id }} - {{ tc.name }}</span>
+            </button>
+            <div class="flex shrink-0 opacity-0 group-hover/exptc:opacity-100 transition-opacity">
+              <button type="button" (click)="openEditTestCase(tc); $event.stopPropagation()" class="text-gray-500 hover:text-dashboard-primary p-1" title="Sửa">
+                <span class="material-symbols-outlined text-[16px]">edit</span>
+              </button>
+              <button type="button" (click)="openDeleteTestCase(tc); $event.stopPropagation()" class="text-gray-500 hover:text-red-400 p-1" title="Xóa">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <div class="text-xs text-gray-500 px-2 py-1">Chưa có test case.</div>
+        }
+      }
+    </div>
+  }
+} @empty {
+<div class="text-gray-500 px-2 py-2">Chọn dự án để xem feature.</div>
+}
+</div>
+
+<div class="min-h-[40vh]">
+@if (selectedTestCaseId()) {
+<div class="text-xs text-gray-500 mb-2">Đang xem: <span class="text-gray-200">{{ selectedTestCaseLabel() }}</span></div>
+<div class="rounded-lg border border-dashboard-border bg-dashboard-bg/10 p-3">
+<div class="flex items-center justify-between gap-2">
+<div class="text-white font-medium">Chi tiết test case</div>
+<button type="button" (click)="openSidebarSection('testcase')" class="text-xs text-dashboard-primary hover:underline">Mở màn Testcase</button>
+</div>
+<div class="mt-2 text-xs text-gray-400 whitespace-pre-wrap">{{ buildTestCaseContext() }}</div>
+</div>
+} @else {
+<div class="text-gray-500">Chọn 1 test case để xem chi tiết.</div>
+}
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<!-- History tab -->
+<div [class.hidden]="testCaseTab() !== 'history'" class="mt-4 bg-dashboard-surface border border-dashboard-border rounded-lg overflow-hidden">
+  <div class="px-4 py-3 border-b border-dashboard-border bg-gray-800/30 flex items-center justify-between gap-3">
+    <div class="text-white font-semibold text-[14px]">Lịch sử chạy</div>
+    <button type="button" (click)="loadRunHistory()" class="text-xs px-2 py-1.5 rounded border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40" [disabled]="runHistoryLoading()">
+      Tải lại
+    </button>
+  </div>
+  <div class="p-4">
+    @if (runHistoryLoading()) {
+      <div class="text-gray-500 text-sm">Đang tải…</div>
+    } @else if (runHistoryError()) {
+      <div class="text-red-400 text-sm">{{ runHistoryError() }}</div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-[13px]">
+          <thead class="bg-gray-800/50 font-label-caps text-[11px] text-gray-400 uppercase tracking-wider border-b border-dashboard-border">
+            <tr>
+              <th class="px-3 py-2 w-12">#</th>
+              <th class="px-3 py-2">Kết quả</th>
+              <th class="px-3 py-2">Người chạy</th>
+              <th class="px-3 py-2">Thời gian</th>
+              <th class="px-3 py-2">Duration</th>
+              <th class="px-3 py-2 w-24"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dashboard-border">
+            @for (r of runHistory(); track r.id; let i = $index) {
+              <tr class="hover:bg-dashboard-border/20 transition-colors">
+                <td class="px-3 py-2 text-gray-500">{{ i + 1 }}</td>
+                <td class="px-3 py-2">
+                  <span
+                    class="text-[11px] font-bold px-2 py-0.5 rounded border"
+                    [class.text-dashboard-success-text]="r.overallStatus === 'passed'"
+                    [class.border-dashboard-success-text/30]="r.overallStatus === 'passed'"
+                    [class.bg-dashboard-success-bg]="r.overallStatus === 'passed'"
+                    [class.text-red-300]="r.overallStatus === 'failed'"
+                    [class.border-red-500/30]="r.overallStatus === 'failed'"
+                    [class.bg-red-500/10]="r.overallStatus === 'failed'"
+                  >
+                    {{ r.overallStatus.toUpperCase() }}
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-gray-400">{{ r.triggeredByUsername?.trim() ? r.triggeredByUsername : '—' }}</td>
+                <td class="px-3 py-2 text-gray-300">{{ r.finishedAt | date: 'short' }}</td>
+                <td class="px-3 py-2 text-gray-400">{{ (r.durationMs / 1000).toFixed(1) }}s</td>
+                <td class="px-3 py-2 text-right">
+                  <button type="button" (click)="openHistoryDetail(r.id)" class="text-xs text-dashboard-primary hover:underline">
+                    Xem
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="px-3 py-10 text-center text-gray-500">Chưa có lịch sử chạy.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+<!-- Right Results Panel (400px fixed width) -->
+<div class="w-[400px] border-l border-dashboard-border bg-[#151c25] flex flex-col min-h-0 h-full max-h-full flex-shrink-0">
+<!-- Panel Header -->
+<div class="p-4 border-b border-dashboard-border space-y-3 bg-dashboard-surface">
+<div class="flex justify-between items-start">
+<h3 class="font-medium text-[16px] text-white">Kết quả chạy mới nhất</h3>
+@if (runLoading()) {
+<span class="text-amber-300 text-[11px] font-medium flex items-center gap-1 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[12px]">progress_activity</span> RUNNING
+</span>
+} @else if (runResult()?.overallStatus === 'failed') {
+<span class="text-red-300 text-[11px] font-bold border border-red-500/30 bg-red-500/10 px-2 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">cancel</span> FAILED
+</span>
+} @else if (runResult()?.overallStatus === 'passed') {
+<span class="bg-dashboard-success-bg text-dashboard-success-text px-2 py-0.5 rounded text-[11px] font-bold tracking-wide flex items-center gap-1 border border-dashboard-success-text/20">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> PASSED
+</span>
+} @else {
+<span class="text-gray-500 text-[11px] border border-gray-700 px-2 py-0.5 rounded">Chưa chạy</span>
+}
+</div>
+<div class="grid grid-cols-2 gap-y-2 text-[12px] text-gray-400">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-gray-500">schedule</span>
+<span>@if (runResult()?.finishedAt) { {{ runResult()!.finishedAt | date: 'short' }} } @else { — }</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-gray-500">timer</span>
+<span>@if (runResult()?.durationMs) { {{ (runResult()!.durationMs / 1000).toFixed(1) }}s } @else { — }</span>
+</div>
+<div class="flex items-center gap-1.5 col-span-2">
+<span class="material-symbols-outlined text-[14px] text-gray-500">devices</span>
+<span>Chrome 120 / Windows 11</span>
+</div>
+</div>
+</div>
+<!-- Panel Tabs -->
+<div class="flex border-b border-dashboard-border px-3 pt-2 bg-dashboard-surface">
+<button class="px-3 pb-1.5 text-dashboard-primary text-[13px] font-medium border-b-2 border-dashboard-primary">Tổng quan</button>
+<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Chi tiết</button>
+<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Log</button>
+<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Ảnh chụp</button>
+</div>
+<!-- Panel Content (Overview) -->
+<div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+<!-- Screenshot Section -->
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<h4 class="font-label-caps text-[11px] text-gray-400 uppercase tracking-wider">Ảnh chụp màn hình cuối</h4>
+<button type="button" (click)="setRunTab('shots')" class="text-dashboard-primary text-[11px] flex items-center hover:underline"><span class="material-symbols-outlined text-[12px]">open_in_full</span> Xem tất cả</button>
+</div>
+<!-- Large Placeholder -->
+<div class="w-full aspect-video bg-gray-800 border border-gray-700 rounded-lg relative overflow-hidden group cursor-pointer">
+@if (selectedShotDataUrl()) {
+<img [src]="selectedShotDataUrl()!" alt="Screenshot" class="absolute inset-0 w-full h-full object-cover object-top" />
+} @else {
+<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm px-4 text-center">
+Chưa có ảnh. Bấm “Chạy test”.
+</div>
+}
+</div>
+<!-- Thumbnail Carousel (Simplified) -->
+<div class="flex gap-2 overflow-x-auto pb-1">
+@for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
+@if (s.screenshotBase64) {
+<button type="button" (click)="pickShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i">
+<img [src]="'data:image/png;base64,' + s.screenshotBase64" alt="" class="w-full h-full object-cover object-top" />
+</button>
+}
+}
+</div>
+</div>
+<!-- Test Flow Stats -->
+<div class="bg-dashboard-surface border border-dashboard-border rounded-lg p-3">
+<h4 class="font-label-caps text-[11px] text-gray-400 uppercase tracking-wider mb-2">Thống kê thực thi</h4>
+<div class="space-y-2">
+<div>
+<div class="flex justify-between text-[11px] mb-1">
+<span class="text-gray-300">Hoàn thành các bước</span>
+<span class="text-dashboard-success-text">{{ runStats().passed }}/{{ runStats().total }}</span>
+</div>
+<div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+<div class="h-full bg-dashboard-success-text rounded-full" [style.width]="runProgressWidth()"></div>
+</div>
+</div>
+<div class="flex gap-3 pt-1">
+<div class="flex-1 text-center bg-gray-800/50 rounded py-1.5">
+<div class="text-lg font-bold text-dashboard-success-text leading-tight">{{ runStats().failed }}</div>
+<div class="text-[9px] text-gray-500 uppercase tracking-wide">Errors</div>
+</div>
+<div class="flex-1 text-center bg-gray-800/50 rounded py-1.5">
+<div class="text-lg font-bold text-yellow-500 leading-tight">0</div>
+<div class="text-[9px] text-gray-500 uppercase tracking-wide">Warnings</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Panel Bottom: AI Analysis -->
+<div class="p-3 border-t border-dashboard-border bg-dashboard-surface shrink-0 min-h-0 max-h-[min(42vh,320px)] flex flex-col">
+<div class="bg-blue-900/20 border border-blue-900/50 rounded-lg p-2.5 space-y-2 min-h-0 flex flex-col flex-1">
+<div class="flex flex-wrap items-center justify-between gap-2 shrink-0">
+<span class="text-[13px] font-medium text-blue-300">AI Phân tích kết quả</span>
+<button
+  type="button"
+  (click)="analyzeRunResult()"
+  [disabled]="runAnalysisLoading() || !runResult()"
+  class="text-[11px] px-2.5 py-1 rounded-lg border border-blue-500/40 text-blue-200 hover:bg-blue-500/15 disabled:opacity-40 disabled:pointer-events-none shrink-0"
+>
+  {{ runAnalysisLoading() ? 'Đang phân tích…' : 'Phân tích bằng AI' }}
+</button>
+</div>
+<div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+@if (runAnalysisError()) {
+<p class="text-[11px] text-red-400 break-words">{{ runAnalysisError() }}</p>
+}
+@if (!runResult()) {
+<p class="text-[12px] text-gray-500 leading-relaxed">Chạy test ít nhất một lần; sau đó bấm «Phân tích bằng AI» để nhận nhận xét ngắn.</p>
+} @else if (runAnalysisLoading()) {
+<p class="text-[12px] text-gray-400 animate-pulse">Đang gửi kết quả tới AI…</p>
+} @else if (runAnalysisText()) {
+<p class="text-[12px] text-gray-200 leading-relaxed whitespace-pre-wrap break-words">{{ runAnalysisText() }}</p>
+} @else {
+<p class="text-[12px] text-gray-400 leading-relaxed">Bấm «Phân tích bằng AI» để xem đánh giá ngắn gọn về lần chạy vừa rồi.</p>
+}
+</div>
+</div>
+</div>
+</div>
+</div>
 </main>
 
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * The content above * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * * -->
-<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * End of Placeholder  * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+@if (addStepOpen() || editStepOpen() || deleteStepOpen()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65" (click)="closeMenu(); addStepOpen() ? closeAddStep() : null; editStepOpen() ? closeEditStep() : null; deleteStepOpen() ? closeDeleteStep() : null">
+<div class="bg-[#151c25] border border-dashboard-border rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden text-[13px] text-gray-200" (click)="$event.stopPropagation()">
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-dashboard-border bg-dashboard-surface shrink-0">
+<h2 class="text-white font-medium text-[15px]">@if (addStepOpen()) { Thêm bước } @else if (editStepOpen()) { Sửa bước } @else { Xóa bước }</h2>
+<button type="button" (click)="addStepOpen() ? closeAddStep() : editStepOpen() ? closeEditStep() : closeDeleteStep()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dashboard-border/50" aria-label="Đóng"><span class="material-symbols-outlined text-[22px]">close</span></button>
+</div>
+@if (deleteStepOpen()) {
+<div class="p-4 space-y-3">
+<p class="text-gray-300">Bạn chắc chắn muốn xóa bước này?</p>
+<div class="flex gap-2 justify-end">
+<button type="button" (click)="closeDeleteStep()" class="border border-dashboard-border text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-border/40">Hủy</button>
+<button type="button" (click)="confirmDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg">Xóa</button>
+</div>
+</div>
+} @else {
+<div class="p-4 space-y-2">
+@if (actionsError()) { <p class="text-red-400 text-xs">{{ actionsError() }}</p> }
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" placeholder="Tên bước" [value]="formName()" (input)="onFormNameInput($event)" />
+<select class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300" [value]="formKind()" (change)="onFormKindChange($event)">
+<option value="navigate">Navigate</option>
+<option value="click_selector">Click (selector)</option>
+<option value="click_text">Click (theo chữ)</option>
+<option value="type">Gõ text</option>
+<option value="wait">Chờ (ms)</option>
+</select>
+@if (formKind() === 'navigate') { <input type="url" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="https://..." [value]="formUrl()" (input)="onFormUrlInput($event)" /> }
+@if (formKind() === 'click_selector' || formKind() === 'type') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="CSS selector" [value]="formSelector()" (input)="onFormSelectorInput($event)" /> }
+@if (formKind() === 'click_text') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="Chuỗi trên nút/link" [value]="formMatchText()" (input)="onFormMatchTextInput($event)" /> }
+@if (formKind() === 'type') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-green-200 sm:col-span-2" placeholder="Giá trị gõ" [value]="formValue()" (input)="onFormValueInput($event)" /> }
+@if (formKind() === 'wait') { <input type="number" min="0" max="120000" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" [value]="formWaitMs()" (input)="onFormWaitMsInput($event)" /> }
+</div>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300 h-16 resize-none" placeholder="Kỳ vọng (tuỳ chọn)" [value]="formExpectation()" (input)="onFormExpectationInput($event)"></textarea>
+<div class="flex justify-end gap-2 pt-2">
+<button type="button" (click)="addStepOpen() ? closeAddStep() : closeEditStep()" class="border border-dashboard-border text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-border/40">Hủy</button>
+<button type="button" (click)="saveAction()" class="bg-dashboard-primary hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">{{ addStepOpen() ? 'Thêm' : 'Cập nhật' }}</button>
+</div>
+</div>
+}
+</div>
+</div>
+}
 
+@if (crudModalOpen()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65" (click)="closeCrudModal()">
+<div class="bg-[#151c25] border border-dashboard-border rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden text-[13px] text-gray-200" (click)="$event.stopPropagation()">
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-dashboard-border bg-dashboard-surface shrink-0">
+<h2 class="text-white font-medium text-[15px]">
+@if (crudEntity() === 'project') { Dự án } @else if (crudEntity() === 'feature') { Feature } @else { Test case }
+— @if (crudMode() === 'create') { Thêm } @else if (crudMode() === 'edit') { Sửa } @else { Xóa }
+</h2>
+<button type="button" (click)="closeCrudModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dashboard-border/50" aria-label="Đóng">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<div class="p-4 space-y-3">
+@if (crudError()) { <p class="text-red-400 text-xs">{{ crudError() }}</p> }
 
-<router-outlet />
+@if (crudMode() === 'delete') {
+<p class="text-gray-300">
+  @if (crudEntity() === 'testcase' && crudFormName()) {
+  Xóa test case <span class="text-white font-medium">«{{ crudFormName() }}»</span>@if (crudEditingId()) { <span class="text-gray-500 font-mono text-[11px]"> ({{ crudEditingId() }})</span> }?
+  } @else {
+  Bạn chắc chắn muốn xóa mục này?
+  }
+</p>
+} @else {
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+@if (crudEntity() === 'testcase' && crudMode() === 'create') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" placeholder="ID (tc-001)" [value]="crudFormId()" (input)="onCrudFormIdInput($event)" />
+}
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" placeholder="Key (tuỳ chọn)" [value]="crudFormKey()" (input)="onCrudFormKeyInput($event)" />
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="Tên" [value]="crudFormName()" (input)="onCrudFormNameInput($event)" />
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300 h-20 resize-none sm:col-span-2" placeholder="Mô tả" [value]="crudFormDescription()" (input)="onCrudFormDescriptionInput($event)"></textarea>
+@if (crudEntity() === 'testcase') {
+<select class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300" [value]="crudFormStatus()" (change)="onCrudFormStatusChange($event)">
+<option value="active">active</option>
+<option value="draft">draft</option>
+<option value="deprecated">deprecated</option>
+</select>
+<select class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300" [value]="crudFormPriority()" (change)="onCrudFormPriorityChange($event)">
+<option value="high">high</option>
+<option value="medium">medium</option>
+<option value="low">low</option>
+</select>
+}
+</div>
+}
+
+<div class="flex gap-2 justify-end pt-2">
+<button type="button" (click)="closeCrudModal()" class="border border-dashboard-border text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-border/40">Hủy</button>
+<button type="button" (click)="submitCrud()" class="text-white text-xs px-3 py-1.5 rounded-lg" [class.bg-dashboard-primary]="crudMode() !== 'delete'" [class.hover:bg-blue-600]="crudMode() !== 'delete'" [class.bg-red-600]="crudMode() === 'delete'" [class.hover:bg-red-500]="crudMode() === 'delete'">
+@if (crudMode() === 'delete') { Xóa } @else { Lưu }
+</button>
+</div>
+</div>
+</div>
+</div>
+}
+
+@if (flowModalOpen()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65" (click)="onFlowModalBackdrop($event)" role="dialog" aria-modal="true" aria-labelledby="flow-modal-title">
+<div class="bg-[#151c25] border border-dashboard-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden text-[13px] text-gray-200" (click)="$event.stopPropagation()">
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-dashboard-border bg-dashboard-surface shrink-0">
+<h2 id="flow-modal-title" class="text-white font-medium text-[15px]">TestFlow — Hành động &amp; chạy Puppeteer</h2>
+<button type="button" (click)="closeFlowModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dashboard-border/50" aria-label="Đóng">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<div class="flex border-b border-dashboard-border px-3 pt-2 bg-dashboard-surface shrink-0 gap-1">
+<button type="button" (click)="setFlowModalTab('actions')" class="px-3 pb-2 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="flowModalTab() === 'actions'" [class.border-dashboard-primary]="flowModalTab() === 'actions'" [class.text-gray-400]="flowModalTab() !== 'actions'" [class.border-transparent]="flowModalTab() !== 'actions'">Chỉnh sửa bước</button>
+<button type="button" (click)="setFlowModalTab('run')" class="px-3 pb-2 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="flowModalTab() === 'run'" [class.border-dashboard-primary]="flowModalTab() === 'run'" [class.text-gray-400]="flowModalTab() !== 'run'" [class.border-transparent]="flowModalTab() !== 'run'">Kết quả chạy</button>
+</div>
+<div class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+@if (flowModalTab() === 'actions') {
+<div class="rounded-lg border border-dashboard-border bg-dashboard-surface overflow-hidden flex flex-col">
+<div class="p-3 border-b border-dashboard-border space-y-2 bg-gray-800/30">
+@if (actionsError()) {
+<p class="text-red-400 text-xs leading-snug">{{ actionsError() }}</p>
+}
+<div class="flex flex-wrap items-center gap-2">
+<span class="text-[11px] text-gray-500 uppercase tracking-wide font-label-caps">{{ editingId() ? 'Sửa hành động' : 'Thêm hành động' }}</span>
+@if (editingId()) {
+<button type="button" (click)="resetForm()" class="text-xs text-gray-400 hover:text-white ml-auto">Hủy sửa</button>
+}
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" placeholder="Tên bước" [value]="formName()" (input)="onFormNameInput($event)" />
+<select class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300" [value]="formKind()" (change)="onFormKindChange($event)">
+<option value="navigate">Navigate</option>
+<option value="click_selector">Click (selector)</option>
+<option value="click_text">Click (theo chữ)</option>
+<option value="type">Gõ text</option>
+<option value="wait">Chờ (ms)</option>
+</select>
+@if (formKind() === 'navigate') {
+<input type="url" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="https://..." [value]="formUrl()" (input)="onFormUrlInput($event)" />
+}
+@if (formKind() === 'click_selector' || formKind() === 'type') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="CSS selector" [value]="formSelector()" (input)="onFormSelectorInput($event)" />
+}
+@if (formKind() === 'click_text') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="Chuỗi trên nút/link" [value]="formMatchText()" (input)="onFormMatchTextInput($event)" />
+}
+@if (formKind() === 'type') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-green-200 sm:col-span-2" placeholder="Giá trị gõ" [value]="formValue()" (input)="onFormValueInput($event)" />
+}
+@if (formKind() === 'wait') {
+<input type="number" min="0" max="120000" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" [value]="formWaitMs()" (input)="onFormWaitMsInput($event)" />
+}
+</div>
+<textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300 h-14 resize-none" placeholder="Kỳ vọng (tuỳ chọn)" [value]="formExpectation()" (input)="onFormExpectationInput($event)"></textarea>
+<div class="flex gap-2 flex-wrap items-center">
+<label class="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer select-none" title="Puppeteer đọc label/placeholder trước khi hỏi Gemini (chậm)">
+<input type="checkbox" class="rounded border-dashboard-border" [checked]="aiFillUseDom()" (change)="toggleAiFillUseDom($event)" />
+Thu DOM
+</label>
+<button type="button" (click)="aiFillPreview()" [disabled]="aiFillLoading() || !selectedTestCaseId()" class="border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">AI điền</button>
+@if (aiFillDraft()?.fills?.length) {
+<button type="button" (click)="aiFillApply()" [disabled]="aiFillLoading()" class="border border-green-500/50 text-green-300 hover:bg-green-500/10 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Áp dụng</button>
+}
+<button type="button" (click)="saveAction()" class="bg-dashboard-primary hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">{{ editingId() ? 'Cập nhật' : 'Thêm bước' }}</button>
+<button type="button" (click)="loadActions()" class="border border-dashboard-border text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-border/40 disabled:opacity-40" [disabled]="actionsLoading()">Tải lại</button>
+<button type="button" (click)="runTest()" [disabled]="runLoading()" class="border border-dashboard-primary text-dashboard-primary text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10">Chạy test ngay</button>
+</div>
+@if (aiFillError() && flowModalOpen()) {
+<p class="text-red-400 text-xs mt-1">{{ aiFillError() }}</p>
+}
+@if (aiFillDraft()?.fills?.length && flowModalOpen()) {
+<div class="mt-2 rounded border border-blue-900/40 bg-blue-950/20 p-2 text-[11px] text-gray-300 space-y-1 max-h-32 overflow-y-auto">
+@for (f of aiFillDraft()!.fills; track f.actionId) {
+<div><span class="text-gray-500">{{ aiFillRowLabel(f.actionId) }}</span> → <code class="text-green-300">{{ f.value }}</code></div>
+}
+</div>
+}
+</div>
+<div class="overflow-x-auto max-h-64">
+<table class="w-full text-left border-collapse text-[13px]">
+<thead class="bg-gray-800/50 font-label-caps text-[11px] text-gray-400 uppercase tracking-wider border-b border-dashboard-border">
+<tr>
+<th class="px-3 py-2 w-16 text-center">#</th>
+<th class="px-3 py-2">Hành động</th>
+<th class="px-3 py-2">Thông tin</th>
+<th class="px-3 py-2">Kỳ vọng</th>
+<th class="px-3 py-2 w-24"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-dashboard-border">
+@for (a of actions(); track a.id) {
+<tr [class.bg-dashboard-primary/10]="editingId() === a.id" class="hover:bg-dashboard-border/20 transition-colors">
+<td class="px-3 py-2 text-center text-gray-500">
+<div class="flex flex-col items-center gap-0.5">
+<div class="flex items-center gap-0.5">
+<button type="button" (click)="moveAction(a.id, -1)" class="text-gray-600 hover:text-white p-0.5 leading-none text-[10px]" title="Lên">▲</button>
+<button type="button" (click)="moveAction(a.id, 1)" class="text-gray-600 hover:text-white p-0.5 leading-none text-[10px]" title="Xuống">▼</button>
+</div>
+<span>{{ a.order + 1 }}</span>
+</div>
+</td>
+<td class="px-3 py-2"><span class="bg-gray-800 px-1.5 py-0.5 rounded border border-gray-700 text-blue-300 font-code-mono text-[12px]">{{ kindLabel(a.kind) }}</span></td>
+<td class="px-3 py-2 text-gray-300 break-all max-w-[220px]">{{ actionDetailRow(a) }}</td>
+<td class="px-3 py-2 text-gray-400 text-[12px]">{{ a.expectation || '—' }}</td>
+<td class="px-3 py-2 text-right whitespace-nowrap">
+<button type="button" (click)="startEdit(a)" class="text-gray-500 hover:text-dashboard-primary p-1 align-middle" title="Sửa"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+<button type="button" (click)="openDeleteStep(a.id)" class="text-gray-500 hover:text-red-400 p-1 align-middle" title="Xóa"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</td>
+</tr>
+} @empty {
+<tr><td colspan="5" class="px-3 py-6 text-center text-gray-500 text-sm">Chưa có bước.</td></tr>
+}
+</tbody>
+</table>
+</div>
+</div>
+}
+@if (flowModalTab() === 'run') {
+<div class="space-y-3">
+<div class="flex flex-wrap items-center gap-2 justify-between">
+@if (runLoading()) {
+<span class="text-amber-300 text-[11px] font-medium flex items-center gap-1 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[12px]">progress_activity</span> Đang chạy test…
+</span>
+} @else if (runError() && !runResult()) {
+<span class="text-red-300 text-[11px] font-bold border border-red-500/30 bg-red-500/10 px-2 py-0.5 rounded">Lỗi</span>
+} @else if (runResult()?.overallStatus === 'failed') {
+<span class="text-red-300 text-[11px] font-bold border border-red-500/30 bg-red-500/10 px-2 py-0.5 rounded">FAILED</span>
+} @else if (runResult()?.overallStatus === 'passed') {
+<span class="bg-dashboard-success-bg text-dashboard-success-text px-2 py-0.5 rounded text-[11px] font-bold border border-dashboard-success-text/20">PASSED</span>
+} @else {
+<span class="text-gray-500 text-[11px] border border-gray-700 px-2 py-0.5 rounded">Chưa chạy</span>
+}
+<button type="button" (click)="runTest()" [disabled]="runLoading()" class="text-xs border border-dashboard-primary text-dashboard-primary px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10 disabled:opacity-40">Chạy lại</button>
+</div>
+@if (runError()) {
+<p class="text-red-400 text-xs">{{ runError() }}</p>
+}
+<div class="flex gap-1 flex-wrap text-[12px]">
+<button type="button" (click)="setRunTab('overview')" class="px-2 py-1 rounded border" [class.border-dashboard-primary]="runPanelTab() === 'overview'" [class.text-dashboard-primary]="runPanelTab() === 'overview'" [class.border-dashboard-border]="runPanelTab() !== 'overview'">Tổng quan</button>
+<button type="button" (click)="setRunTab('steps')" class="px-2 py-1 rounded border" [class.border-dashboard-primary]="runPanelTab() === 'steps'" [class.text-dashboard-primary]="runPanelTab() === 'steps'" [class.border-dashboard-border]="runPanelTab() !== 'steps'">Chi tiết</button>
+<button type="button" (click)="setRunTab('log')" class="px-2 py-1 rounded border" [class.border-dashboard-primary]="runPanelTab() === 'log'" [class.text-dashboard-primary]="runPanelTab() === 'log'" [class.border-dashboard-border]="runPanelTab() !== 'log'">Log</button>
+<button type="button" (click)="setRunTab('shots')" class="px-2 py-1 rounded border" [class.border-dashboard-primary]="runPanelTab() === 'shots'" [class.text-dashboard-primary]="runPanelTab() === 'shots'" [class.border-dashboard-border]="runPanelTab() !== 'shots'">Ảnh chụp</button>
+</div>
+@if (runPanelTab() === 'overview') {
+<div class="rounded-lg border border-dashboard-border bg-dashboard-surface p-3 space-y-2">
+<p class="text-[11px] text-gray-500">@if (runResult()?.finishedAt) { {{ runResult()!.finishedAt | date: 'short' }} · {{ (runResult()!.durationMs / 1000).toFixed(1) }}s } @else { — }</p>
+<div class="aspect-video bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
+@if (selectedShotDataUrl()) {
+<img [src]="selectedShotDataUrl()!" alt="Screenshot" class="max-w-full max-h-full object-contain" />
+} @else {
+<span class="text-gray-500 text-sm px-4 text-center">Chưa có ảnh. Chạy test từ tab «Chỉnh sửa bước» hoặc nút trên.</span>
+}
+</div>
+<div class="flex gap-2 overflow-x-auto pb-1">
+@for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
+@if (s.screenshotBase64) {
+<button type="button" (click)="pickShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i">
+<img [src]="'data:image/png;base64,' + s.screenshotBase64" alt="" class="w-full h-full object-cover object-top" />
+</button>
+}
+}
+</div>
+<div class="text-[11px] text-gray-400">Hoàn thành: <span [class.text-dashboard-success-text]="runStats().failed === 0" [class.text-red-400]="runStats().failed > 0">{{ runStats().passed }}/{{ runStats().total }}</span></div>
+<div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+<div class="h-full rounded-full transition-all" [class.bg-dashboard-success-text]="runStats().failed === 0" [class.bg-red-500]="runStats().failed > 0" [style.width]="runProgressWidth()"></div>
+</div>
+</div>
+}
+@if (runPanelTab() === 'steps') {
+<ul class="space-y-2 text-[12px] max-h-72 overflow-y-auto">
+@for (s of runResult()?.steps ?? []; track s.actionId) {
+<li class="rounded-lg border px-3 py-2 border-dashboard-border" [class.border-red-500/50]="s.status === 'failed'" [class.border-green-500/30]="s.status === 'passed'">
+<div class="flex justify-between gap-2"><span class="text-white font-medium">{{ s.order + 1 }}. {{ s.name }}</span><span class="text-[10px] uppercase" [class.text-red-400]="s.status === 'failed'" [class.text-dashboard-success-text]="s.status === 'passed'">{{ s.status }}</span></div>
+@if (s.message) {<p class="text-red-300 text-[11px] mt-1">{{ s.message }}</p>}
+</li>
+} @empty {
+<li class="text-gray-500">Chưa có lần chạy.</li>
+}
+</ul>
+}
+@if (runPanelTab() === 'log') {
+<pre class="text-[11px] text-gray-400 whitespace-pre-wrap font-mono bg-black/30 rounded-lg p-3 border border-gray-800 max-h-72 overflow-y-auto">{{ runResult()?.error || runError() || 'Không có log.' }}</pre>
+}
+@if (runPanelTab() === 'shots') {
+<div class="space-y-2 max-h-80 overflow-y-auto">
+@for (s of runResult()?.steps ?? []; track s.actionId) {
+@if (s.screenshotBase64) {
+<div class="rounded border border-dashboard-border overflow-hidden">
+<p class="text-[10px] text-gray-500 px-2 py-1 bg-gray-900/80">{{ s.name }}</p>
+<img [src]="'data:image/png;base64,' + s.screenshotBase64" [alt]="s.name" class="w-full object-contain bg-gray-900 max-h-48" />
+</div>
+}
+} @empty {
+<p class="text-gray-500 text-sm">Chưa có ảnh.</p>
+}
+</div>
+}
+</div>
+}
+</div>
+</div>
+</div>
+}
+
+@if (historyDetailOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65" (click)="closeHistoryDetail()">
+    <div class="bg-[#151c25] border border-dashboard-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden text-[13px] text-gray-200" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-dashboard-border bg-dashboard-surface shrink-0">
+        <h2 class="text-white font-medium text-[15px]">Chi tiết lịch sử chạy</h2>
+        <button type="button" (click)="closeHistoryDetail()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-dashboard-border/50" aria-label="Đóng">
+          <span class="material-symbols-outlined text-[22px]">close</span>
+        </button>
+      </div>
+      <div class="p-4 overflow-y-auto space-y-3">
+        @if (historyDetailLoading()) {
+          <div class="text-gray-500">Đang tải…</div>
+        } @else if (historyDetailError()) {
+          <div class="text-red-400 text-sm">{{ historyDetailError() }}</div>
+        } @else if (historyDetail()) {
+          <div class="rounded-lg border border-dashboard-border bg-dashboard-bg/30 px-3 py-2 text-[12px] text-gray-300">
+            <span class="text-gray-500">Test case:</span> {{ historyDetail()!.testCaseId }}
+            <span class="mx-2 text-gray-600">·</span>
+            <span class="text-gray-500">Người chạy:</span> {{ historyDetail()!.triggeredByUsername?.trim() ? historyDetail()!.triggeredByUsername : '—' }}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 justify-between">
+            <div class="text-[12px] text-gray-400">
+              {{ historyDetail()!.finishedAt | date: 'short' }} · {{ (historyDetail()!.durationMs / 1000).toFixed(1) }}s
+            </div>
+            <span
+              class="text-[11px] font-bold px-2 py-0.5 rounded border"
+              [class.text-dashboard-success-text]="historyDetail()!.overallStatus === 'passed'"
+              [class.border-dashboard-success-text/30]="historyDetail()!.overallStatus === 'passed'"
+              [class.bg-dashboard-success-bg]="historyDetail()!.overallStatus === 'passed'"
+              [class.text-red-300]="historyDetail()!.overallStatus === 'failed'"
+              [class.border-red-500/30]="historyDetail()!.overallStatus === 'failed'"
+              [class.bg-red-500/10]="historyDetail()!.overallStatus === 'failed'"
+            >
+              {{ historyDetail()!.overallStatus.toUpperCase() }}
+            </span>
+          </div>
+
+          <div class="rounded-lg border border-dashboard-border bg-dashboard-surface p-3">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="text-white font-medium">Kết quả</div>
+              <button
+                type="button"
+                class="text-xs border border-dashboard-primary text-dashboard-primary px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10"
+                (click)="runResult.set(historyDetail()!.result); closeHistoryDetail()"
+              >
+                Mở ở panel kết quả
+              </button>
+            </div>
+            <div class="text-[11px] text-gray-400 whitespace-pre-wrap break-words">
+              @if (historyDetail()!.result.error) { {{ historyDetail()!.result.error }} } @else { — }
+            </div>
+          </div>
+
+          <ul class="space-y-2 text-[12px]">
+            @for (s of historyDetail()!.result.steps; track s.actionId) {
+              <li class="rounded-lg border px-3 py-2 border-dashboard-border" [class.border-red-500/50]="s.status === 'failed'" [class.border-green-500/30]="s.status === 'passed'">
+                <div class="flex justify-between gap-2">
+                  <span class="text-white font-medium">{{ s.order + 1 }}. {{ s.name }}</span>
+                  <span class="text-[10px] uppercase" [class.text-red-400]="s.status === 'failed'" [class.text-dashboard-success-text]="s.status === 'passed'">{{ s.status }}</span>
+                </div>
+                @if (s.message) {<p class="text-red-300 text-[11px] mt-1">{{ s.message }}</p>}
+              </li>
+            }
+          </ul>
+
+          <div class="border-t border-dashboard-border pt-3 mt-3">
+            <h3 class="text-white font-medium text-[13px] mb-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px] text-gray-400">photo_library</span>
+              Ảnh chụp theo bước
+            </h3>
+            <div class="grid gap-3 max-h-[min(50vh,420px)] overflow-y-auto pr-1">
+              @for (s of historyDetail()!.result.steps; track s.actionId) {
+              @if (s.screenshotBase64) {
+              <div class="rounded-lg border border-dashboard-border overflow-hidden bg-gray-900/40">
+                <p class="text-[10px] text-gray-500 px-2 py-1 bg-gray-900/80 border-b border-dashboard-border">{{ s.order + 1 }}. {{ s.name }} · {{ s.kind }}</p>
+                <img [src]="'data:image/png;base64,' + s.screenshotBase64" [alt]="s.name" class="w-full object-contain max-h-56 bg-gray-950" />
+              </div>
+              }
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="text-gray-500">Không có dữ liệu.</div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (runToasts().length > 0 || batchJobs().length > 0 || runLoading()) {
+<div class="fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-2 w-[min(100vw-2rem,22rem)] pointer-events-none">
+  @if (runToasts().length > 0) {
+  <div class="flex flex-col gap-2 items-end pointer-events-auto w-full">
+    @for (toast of runToasts(); track toast.id) {
+    <div
+      class="rounded-lg border px-3 py-2 shadow-xl text-[12px] flex items-start gap-2 w-full"
+      [class.border-green-500/45]="toast.ok"
+      [class.bg-green-950/95]="toast.ok"
+      [class.border-red-500/45]="!toast.ok"
+      [class.bg-red-950/95]="!toast.ok"
+    >
+      <span
+        class="material-symbols-outlined text-[18px] shrink-0 mt-0.5"
+        [class.text-green-400]="toast.ok"
+        [class.text-red-400]="!toast.ok"
+      >{{ toast.ok ? 'check_circle' : 'error' }}</span>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-white leading-snug">{{ toast.label }}</div>
+        <div class="text-[11px] mt-0.5 leading-snug" [class.text-green-100/90]="toast.ok" [class.text-red-100/90]="!toast.ok">
+          {{ toast.ok ? 'Chạy test thành công' : (toast.detail || 'Chạy test thất bại') }}
+        </div>
+      </div>
+      <button type="button" (click)="dismissRunToast(toast.id)" class="text-gray-400 hover:text-white shrink-0 p-0.5 rounded" aria-label="Đóng">
+        <span class="material-symbols-outlined text-[16px]">close</span>
+      </button>
+    </div>
+    }
+  </div>
+  }
+
+  @if (runLoading()) {
+  <div
+    class="pointer-events-auto w-full rounded-xl border border-amber-500/35 bg-[#0c1018]/98 backdrop-blur-md shadow-2xl overflow-hidden px-3 py-3"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="flex items-start gap-2.5 mb-2.5">
+      <span class="material-symbols-outlined text-amber-400 text-[22px] shrink-0 animate-spin">progress_activity</span>
+      <div class="min-w-0 flex-1">
+        <div class="text-[12px] font-semibold text-white leading-tight">Đang chạy test</div>
+        <div class="text-[10px] text-gray-400 truncate mt-0.5" [title]="selectedTestCaseLabel()">{{ selectedTestCaseLabel() }}</div>
+      </div>
+    </div>
+    <div class="h-2.5 w-full bg-gray-800/90 rounded-full overflow-hidden relative">
+      <div class="absolute inset-0 rounded-full bg-dashboard-primary/65 animate-pulse"></div>
+    </div>
+    <p class="text-[10px] text-gray-500 mt-2 leading-snug">Đang thực thi các bước — có thể mất vài giây đến vài phút.</p>
+  </div>
+  }
+
+  @if (batchJobs().length > 0) {
+  <div class="pointer-events-auto w-full rounded-xl border border-dashboard-border bg-[#0c1018]/95 backdrop-blur-md shadow-2xl overflow-hidden">
+    <button
+      type="button"
+      (click)="toggleBatchPanel()"
+      class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.04] border-b border-dashboard-border/90"
+    >
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="material-symbols-outlined text-dashboard-primary text-[22px] shrink-0">stacked_bar_chart</span>
+        <div class="min-w-0 text-left">
+          <div class="text-[12px] font-semibold text-white truncate">Tiến độ chạy</div>
+          <div class="text-[10px] text-gray-500 truncate">{{ batchSummaryLine() }}</div>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-gray-400 text-[22px] shrink-0">{{ batchPanelExpanded() ? 'expand_less' : 'expand_more' }}</span>
+    </button>
+
+    <div class="px-3 pt-2 pb-2">
+      <div class="h-2 w-full bg-gray-800 rounded-full overflow-hidden relative">
+        <div
+          class="h-full rounded-full bg-dashboard-primary transition-[width] duration-300 ease-out"
+          [style.width.%]="batchProgressPercent()"
+        ></div>
+        @if (batchRunnerBusy()) {
+        <div class="absolute inset-0 bg-white/15 animate-pulse pointer-events-none"></div>
+        }
+      </div>
+      @if (batchRunningJob(); as cur) {
+      <p class="text-[10px] text-gray-400 mt-2 leading-snug">
+        <span class="text-dashboard-primary font-medium">Đang chạy:</span>
+        <span class="text-gray-300">{{ cur.testCaseLabel }}</span>
+      </p>
+      }
+    </div>
+
+    @if (batchPanelExpanded()) {
+    <div class="border-t border-dashboard-border max-h-56 overflow-y-auto">
+      @for (job of batchJobs(); track job.id) {
+      <div class="px-3 py-2 flex items-start gap-2 border-b border-dashboard-border/60 last:border-0 text-[11px]">
+        @switch (job.status) {
+          @case ('queued') {
+            <span class="material-symbols-outlined text-gray-500 text-[17px] shrink-0 mt-0.5">schedule</span>
+          }
+          @case ('running') {
+            <span class="material-symbols-outlined text-amber-400 text-[17px] shrink-0 mt-0.5 animate-spin">progress_activity</span>
+          }
+          @case ('done') {
+            <span class="material-symbols-outlined text-green-400 text-[17px] shrink-0 mt-0.5">check_circle</span>
+          }
+          @case ('error') {
+            <span class="material-symbols-outlined text-red-400 text-[17px] shrink-0 mt-0.5">cancel</span>
+          }
+        }
+        <div class="flex-1 min-w-0">
+          <div class="text-gray-100 truncate font-medium">{{ job.testCaseLabel }}</div>
+          @if (job.featureLabel) {
+          <div class="text-[10px] text-gray-500 truncate">{{ job.featureLabel }}</div>
+          }
+          @if (job.status === 'error' && job.errorMessage) {
+          <div class="text-[10px] text-red-300/95 mt-1 leading-snug break-words">{{ job.errorMessage }}</div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+
+    <div class="flex flex-wrap items-center justify-end gap-2 px-3 py-2 border-t border-dashboard-border bg-black/25">
+      <button
+        type="button"
+        (click)="clearBatchTerminalJobs()"
+        [disabled]="!batchHasTerminalJobs()"
+        class="text-[10px] text-gray-400 hover:text-white disabled:opacity-30 px-2 py-1 rounded"
+      >
+        Xóa mục đã xong
+      </button>
+      <button
+        type="button"
+        (click)="dismissBatchRunnerPanel()"
+        [disabled]="batchDismissPanelDisabled()"
+        class="text-[10px] text-gray-400 hover:text-white disabled:opacity-30 px-2 py-1 rounded"
+      >
+        Đóng bảng
+      </button>
+    </div>
+  </div>
+  }
+</div>
+}
+
+</div>
