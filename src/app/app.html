@@ -162,10 +162,21 @@
 <!-- THỰC THI -->
 <div class="flex flex-col gap-0.5">
 <h3 class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Thực thi</h3>
-<a class="flex items-center gap-2 px-2 py-1 rounded text-gray-400 hover:bg-gray-800 hover:text-gray-100 font-inter text-xs font-medium transition-colors" href="#">
+<button
+  type="button"
+  (click)="openSidebarSection('runningtests')"
+  class="w-full flex items-center gap-2 px-2 py-1 rounded font-inter text-xs font-medium transition-colors"
+  [class.bg-blue-500/10]="currentSidebarSection() === 'runningtests'"
+  [class.text-blue-400]="currentSidebarSection() === 'runningtests'"
+  [class.border-r-4]="currentSidebarSection() === 'runningtests'"
+  [class.border-blue-500]="currentSidebarSection() === 'runningtests'"
+  [class.text-gray-400]="currentSidebarSection() !== 'runningtests'"
+  [class.hover:bg-gray-800]="currentSidebarSection() !== 'runningtests'"
+  [class.hover:text-gray-100]="currentSidebarSection() !== 'runningtests'"
+>
 <span class="material-symbols-outlined text-[16px]">play_circle</span>
         Chạy test
-    </a>
+    </button>
 <button
   type="button"
   (click)="openSidebarSection('runhistory')"
@@ -308,11 +319,14 @@
 <span class="text-dashboard-primary font-medium bg-dashboard-primary/10 px-1.5 py-0.5 rounded">{{ selectedTestCaseId() ?? '—' }}</span>
 </div>
 <!-- Actions -->
-<div class="flex items-center gap-3">
-<button type="button" (click)="runTest()" [disabled]="runLoading()" class="border border-dashboard-border text-dashboard-primary hover:bg-dashboard-border/50 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-colors text-[13px]">
+<div class="flex items-center gap-2">
+<button type="button" (click)="runTest()" [disabled]="runTestButtonDisabledForSelected()" class="border border-dashboard-border text-dashboard-primary hover:bg-dashboard-border/50 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-colors text-[13px]">
 <span class="material-symbols-outlined text-[18px]">play_arrow</span>
                     Chạy test
                 </button>
+@if (showToolbarStopForSelectedTestCase()) {
+<button type="button" (click)="cancelCurrentTestRun()" class="border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 px-2.5 py-1.5 rounded-lg text-[12px] font-medium">Dừng</button>
+}
 </div><div class="flex items-center gap-3 ml-4 pl-4 border-l border-dashboard-border">
 <div class="flex items-center gap-1">
 <button class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-dashboard-border/50 flex items-center justify-center">
@@ -802,6 +816,82 @@
     </div>
     } @empty {
     <div class="text-center text-gray-500 text-sm py-12 border border-dashed border-dashboard-border rounded-lg">Chưa có lần chạy nào.</div>
+    }
+  </div>
+  }
+</div>
+
+<div [class.hidden]="currentSidebarSection() !== 'runningtests'" class="bg-dashboard-surface border border-dashboard-border rounded-lg p-4">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-white font-semibold text-[16px]">Chạy test</h2>
+      <p class="text-[11px] text-gray-500 mt-0.5">Theo quyền dự án. Làm mới 2 giây khi tab đang mở.</p>
+    </div>
+    <button
+      type="button"
+      (click)="loadActiveRuns()"
+      class="text-xs px-3 py-1.5 rounded-lg border border-dashboard-border text-gray-200 hover:bg-dashboard-border/40 shrink-0"
+      [disabled]="activeRunsLoading()"
+    >
+      Tải lại
+    </button>
+  </div>
+  @if (activeRunsLoading()) {
+  <div class="text-gray-500 text-sm py-8 text-center">Đang tải…</div>
+  } @else if (activeRunsError()) {
+  <div class="text-red-400 text-sm py-4">{{ activeRunsError() }}</div>
+  } @else {
+  <div class="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+    @for (row of activeRuns(); track row.testCaseId) {
+    <div class="rounded-xl border border-dashboard-border bg-dashboard-bg/40 overflow-hidden">
+      <div class="flex flex-wrap gap-3 p-3">
+        <div class="min-w-0 flex-1 space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 text-amber-300 border-amber-500/35 bg-amber-500/10"
+            >RUNNING</span>
+            @if (row.source === 'schedule') {
+            <span class="text-[10px] px-2 py-0.5 rounded border border-gray-600 text-gray-400">Lịch</span>
+            } @else {
+            <span class="text-[10px] px-2 py-0.5 rounded border border-gray-600 text-gray-400">Thủ công</span>
+            }
+            <span class="text-[12px] text-gray-200 font-medium leading-snug">{{ activeRunBreadcrumb(row) }}</span>
+          </div>
+          <div class="text-[11px] text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">person</span>{{ row.triggeredByUsername?.trim() ? row.triggeredByUsername : (row.triggeredByUserId ? row.triggeredByUserId.slice(0, 8) + '…' : '—') }}</span>
+            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span>Bắt đầu {{ row.startedAt | date: 'medium' }}</span>
+            <span class="font-mono text-[10px] text-gray-600">TC: {{ row.testCaseId }}</span>
+          </div>
+          <div class="space-y-1">
+            <div class="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
+              <div
+                class="h-full rounded-full bg-dashboard-primary transition-[width] duration-300 ease-out"
+                [style.width.%]="activeRunProgressPercent(row)"
+              ></div>
+            </div>
+            <div class="text-[11px] text-gray-400 font-mono leading-snug">{{ activeRunStepLine(row) }}</div>
+          </div>
+        </div>
+        <div class="flex flex-col justify-center gap-2 shrink-0">
+          <button
+            type="button"
+            (click)="openActiveRunInEditor(row)"
+            class="text-xs font-medium text-gray-200 border border-dashboard-border hover:bg-dashboard-border/40 px-3 py-1.5 rounded-lg whitespace-nowrap"
+          >
+            Mở test case
+          </button>
+          <button
+            type="button"
+            (click)="cancelServerActiveRun(row.testCaseId)"
+            class="text-xs font-medium text-amber-400 border border-amber-500/40 hover:bg-amber-500/10 px-3 py-1.5 rounded-lg whitespace-nowrap"
+          >
+            Dừng
+          </button>
+        </div>
+      </div>
+    </div>
+    } @empty {
+    <div class="text-center text-gray-500 text-sm py-12 border border-dashed border-dashboard-border rounded-lg">Không có tiến trình nào đang chạy.</div>
     }
   </div>
   }
@@ -1837,7 +1927,7 @@ Xem trước
 <div class="p-4 border-b border-dashboard-border space-y-3 bg-dashboard-surface">
 <div class="flex justify-between items-start">
 <h3 class="font-medium text-[16px] text-white">Kết quả chạy mới nhất</h3>
-@if (runLoading()) {
+@if (runPanelBusyForSelectedTestCase()) {
 <span class="text-amber-300 text-[11px] font-medium flex items-center gap-1 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded">
 <span class="material-symbols-outlined text-[12px]">progress_activity</span> RUNNING
 </span>
@@ -1869,66 +1959,151 @@ Xem trước
 </div>
 </div>
 <!-- Panel Tabs -->
-<div class="flex border-b border-dashboard-border px-3 pt-2 bg-dashboard-surface">
-<button class="px-3 pb-1.5 text-dashboard-primary text-[13px] font-medium border-b-2 border-dashboard-primary">Tổng quan</button>
-<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Chi tiết</button>
-<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Log</button>
-<button class="px-3 pb-1.5 text-gray-400 hover:text-white text-[13px] transition-colors border-b-2 border-transparent">Ảnh chụp</button>
+<div class="flex border-b border-dashboard-border px-2 pt-2 bg-dashboard-surface gap-0.5 shrink-0">
+<button type="button" (click)="setRunTab('overview')" class="px-3 pb-1.5 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="runPanelTab() === 'overview'" [class.border-dashboard-primary]="runPanelTab() === 'overview'" [class.text-gray-400]="runPanelTab() !== 'overview'" [class.border-transparent]="runPanelTab() !== 'overview'">Tổng quan</button>
+<button type="button" (click)="setRunTab('steps')" class="px-3 pb-1.5 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="runPanelTab() === 'steps'" [class.border-dashboard-primary]="runPanelTab() === 'steps'" [class.text-gray-400]="runPanelTab() !== 'steps'" [class.border-transparent]="runPanelTab() !== 'steps'">Chi tiết</button>
+<button type="button" (click)="setRunTab('log')" class="px-3 pb-1.5 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="runPanelTab() === 'log'" [class.border-dashboard-primary]="runPanelTab() === 'log'" [class.text-gray-400]="runPanelTab() !== 'log'" [class.border-transparent]="runPanelTab() !== 'log'">Log</button>
+<button type="button" (click)="setRunTab('shots')" class="px-3 pb-1.5 text-[13px] font-medium border-b-2 transition-colors hover:text-white" [class.text-dashboard-primary]="runPanelTab() === 'shots'" [class.border-dashboard-primary]="runPanelTab() === 'shots'" [class.text-gray-400]="runPanelTab() !== 'shots'" [class.border-transparent]="runPanelTab() !== 'shots'">Ảnh chụp</button>
 </div>
-<!-- Panel Content (Overview) -->
 <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-<!-- Screenshot Section -->
+@if (runPanelTab() === 'overview') {
+<div class="space-y-4">
 <div class="space-y-2">
-<div class="flex justify-between items-center">
+<div class="flex justify-between items-center gap-2">
 <h4 class="font-label-caps text-[11px] text-gray-400 uppercase tracking-wider">Ảnh chụp màn hình cuối</h4>
-<button type="button" (click)="setRunTab('shots')" class="text-dashboard-primary text-[11px] flex items-center hover:underline"><span class="material-symbols-outlined text-[12px]">open_in_full</span> Xem tất cả</button>
+<button type="button" (click)="setRunTab('shots')" class="text-dashboard-primary text-[11px] flex items-center gap-0.5 shrink-0 hover:underline"><span class="material-symbols-outlined text-[12px]">open_in_full</span> Xem tất cả</button>
 </div>
-<!-- Large Placeholder -->
-<div class="w-full aspect-video bg-gray-800 border border-gray-700 rounded-lg relative overflow-hidden group cursor-pointer">
+<div class="w-full aspect-video bg-gray-900 border border-gray-700 rounded-lg relative overflow-hidden">
 @if (selectedShotDataUrl()) {
-<img [src]="selectedShotDataUrl()!" alt="Screenshot" class="absolute inset-0 w-full h-full object-cover object-top" />
+<img [src]="selectedShotDataUrl()!" alt="Ảnh bước" class="absolute inset-0 w-full h-full object-contain object-top bg-black" />
 } @else {
-<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm px-4 text-center">
-Chưa có ảnh chụp màn hình.
+<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-[12px] px-4 text-center leading-snug">
+@if (runResult()?.steps?.length) { Bước hiện tại không có ảnh hoặc chưa bật chụp từng bước. } @else { Chưa có lần chạy. }
 </div>
 }
 </div>
-<!-- Thumbnail Carousel (Simplified) -->
-<div class="flex gap-2 overflow-x-auto pb-1">
+<div class="flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5">
 @for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
-@if (s.screenshotBase64) {
-<button type="button" (click)="pickShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i">
-<img [src]="'data:image/png;base64,' + s.screenshotBase64" alt="" class="w-full h-full object-cover object-top" />
+@if (stepHasScreenshot(s)) {
+<button type="button" (click)="selectRunShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden ring-offset-2 ring-offset-[#151c25] focus:outline-none focus:ring-2 focus:ring-dashboard-primary/60" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i" [title]="s.name">
+<img [src]="stepScreenshotSrc(s)!" alt="" class="w-full h-full object-cover object-top" />
 </button>
 }
 }
 </div>
 </div>
-<!-- Test Flow Stats -->
 <div class="bg-dashboard-surface border border-dashboard-border rounded-lg p-3">
 <h4 class="font-label-caps text-[11px] text-gray-400 uppercase tracking-wider mb-2">Thống kê thực thi</h4>
 <div class="space-y-2">
 <div>
 <div class="flex justify-between text-[11px] mb-1">
-<span class="text-gray-300">Hoàn thành các bước</span>
-<span class="text-dashboard-success-text">{{ runStats().passed }}/{{ runStats().total }}</span>
+<span class="text-gray-300">Bước đạt</span>
+<span [class.text-dashboard-success-text]="runStats().failed === 0" [class.text-red-400]="runStats().failed > 0">{{ runStats().passed }}/{{ runStats().total }}</span>
 </div>
 <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-<div class="h-full bg-dashboard-success-text rounded-full" [style.width]="runProgressWidth()"></div>
+<div class="h-full rounded-full transition-all duration-300" [class.bg-dashboard-success-text]="runStats().failed === 0" [class.bg-red-500]="runStats().failed > 0" [style.width]="runProgressWidth()"></div>
 </div>
 </div>
-<div class="flex gap-3 pt-1">
-<div class="flex-1 text-center bg-gray-800/50 rounded py-1.5">
-<div class="text-lg font-bold text-dashboard-success-text leading-tight">{{ runStats().failed }}</div>
-<div class="text-[9px] text-gray-500 uppercase tracking-wide">Errors</div>
+<div class="flex gap-2 pt-1">
+<div class="flex-1 text-center bg-gray-800/50 rounded-lg py-2 border border-gray-800/80">
+<div class="text-lg font-semibold text-red-400 leading-tight tabular-nums">{{ runStats().failed }}</div>
+<div class="text-[9px] text-gray-500 uppercase tracking-wide mt-0.5">Lỗi</div>
 </div>
-<div class="flex-1 text-center bg-gray-800/50 rounded py-1.5">
-<div class="text-lg font-bold text-yellow-500 leading-tight">0</div>
-<div class="text-[9px] text-gray-500 uppercase tracking-wide">Warnings</div>
-</div>
-</div>
+<div class="flex-1 text-center bg-gray-800/50 rounded-lg py-2 border border-gray-800/80">
+<div class="text-lg font-semibold text-amber-400/90 leading-tight tabular-nums">{{ runStats().skipped }}</div>
+<div class="text-[9px] text-gray-500 uppercase tracking-wide mt-0.5">Bỏ qua</div>
 </div>
 </div>
+</div>
+</div>
+</div>
+}
+@if (runPanelTab() === 'steps') {
+<div class="space-y-2">
+@if (!runResult()?.steps?.length && !runPanelBusyForSelectedTestCase()) {
+<p class="text-gray-500 text-[12px] py-6 text-center border border-dashed border-gray-700 rounded-lg">Chưa có dữ liệu bước.</p>
+} @else {
+<ul class="space-y-2">
+@for (s of runResult()?.steps ?? []; track s.actionId) {
+<li class="rounded-lg border bg-dashboard-surface/50 px-3 py-2.5 border-dashboard-border" [class.border-red-500/40]="s.status === 'failed'" [class.bg-red-950/10]="s.status === 'failed'" [class.border-emerald-500/25]="s.status === 'passed'" [class.opacity-80]="s.status === 'skipped'">
+<div class="flex gap-2 items-start">
+<span class="shrink-0 w-6 h-6 rounded-md bg-gray-800 border border-gray-700 text-[11px] font-mono text-gray-300 flex items-center justify-center mt-0.5">{{ s.order + 1 }}</span>
+<div class="min-w-0 flex-1">
+<div class="flex items-start justify-between gap-2">
+<p class="text-[13px] text-white font-medium leading-snug">{{ s.name }}</p>
+@if (s.status === 'passed') {
+<span class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400"><span class="material-symbols-outlined text-[14px]">check_circle</span></span>
+} @else if (s.status === 'failed') {
+<span class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400"><span class="material-symbols-outlined text-[14px]">cancel</span></span>
+} @else {
+<span class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500"><span class="material-symbols-outlined text-[14px]">skip_next</span></span>
+}
+</div>
+<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-gray-500">
+<span class="font-code-mono text-blue-300/90">{{ kindLabel(s.kind) }}</span>
+<span class="text-gray-600">·</span>
+<span class="tabular-nums">{{ s.durationMs }}ms</span>
+@if (s.url) {
+<span class="text-gray-600">·</span>
+<span class="truncate max-w-[200px]" [title]="s.url">{{ s.url }}</span>
+}
+</div>
+@if (s.message) {
+<p class="mt-1.5 text-[11px] text-red-300/95 leading-snug">{{ s.message }}</p>
+}
+</div>
+</div>
+</li>
+}
+</ul>
+}
+</div>
+}
+@if (runPanelTab() === 'log') {
+<div class="rounded-lg border border-gray-800 bg-[#0b0f14] overflow-hidden flex flex-col min-h-[200px] max-h-[min(52vh,420px)]">
+<div class="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-gray-800/90 bg-gray-900/60 shrink-0">
+<span class="text-[10px] font-mono text-gray-500 uppercase tracking-wider">run.log</span>
+<button type="button" (click)="copyRunLog()" [disabled]="!runResult() && !runError() && !runPanelBusyForSelectedTestCase()" class="text-[10px] px-2 py-1 rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 disabled:opacity-30 disabled:pointer-events-none">Sao chép</button>
+</div>
+<div class="flex-1 min-h-0 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed space-y-0.5">
+@for (line of runLogEntries(); track line.key) {
+<p class="whitespace-pre-wrap break-words m-0" [class.text-gray-500]="line.level === 'meta'" [class.text-emerald-400/90]="line.level === 'step-pass'" [class.text-red-400]="line.level === 'step-fail' || line.level === 'fatal'" [class.text-amber-400/80]="line.level === 'step-skip'">{{ line.text }}</p>
+}
+</div>
+</div>
+}
+@if (runPanelTab() === 'shots') {
+<div class="space-y-3">
+@if (!runResult()?.steps?.length) {
+<p class="text-gray-500 text-[12px] py-8 text-center border border-dashed border-gray-700 rounded-lg">Chưa có lần chạy.</p>
+} @else {
+<div class="rounded-lg border border-gray-700 bg-gray-900/40 overflow-hidden">
+@if (selectedShotDataUrl()) {
+<img [src]="selectedShotDataUrl()!" alt="Xem trước" class="w-full max-h-48 object-contain object-top bg-black" />
+} @else {
+<div class="py-10 text-center text-gray-500 text-[12px]">Chọn một ảnh bên dưới.</div>
+}
+</div>
+<div class="space-y-2 max-h-[min(48vh,380px)] overflow-y-auto pr-0.5">
+@for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
+<div class="rounded-lg border border-dashboard-border overflow-hidden bg-dashboard-surface/30">
+<div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-gray-900/70 border-b border-gray-800/80">
+<span class="text-[11px] text-gray-200 truncate"><span class="text-gray-500 font-mono mr-1">{{ s.order + 1 }}.</span>{{ s.name }}</span>
+<span class="shrink-0 text-[10px] text-gray-500 tabular-nums">{{ s.durationMs }}ms</span>
+</div>
+@if (stepHasScreenshot(s)) {
+<button type="button" (click)="selectRunShot(i)" class="block w-full group relative">
+<img [src]="stepScreenshotSrc(s)!" [alt]="s.name" class="w-full object-contain max-h-40 bg-black transition-opacity group-hover:opacity-95" [class.ring-2]="selectedShotIndex() === i" [class.ring-dashboard-primary]="selectedShotIndex() === i" />
+</button>
+} @else {
+<div class="py-6 text-center text-[11px] text-gray-600">Không có ảnh</div>
+}
+</div>
+}
+</div>
+}
+</div>
+}
 </div>
 <!-- Tóm tắt kết quả chạy -->
 <div class="p-3 border-t border-dashboard-border bg-dashboard-surface shrink-0 min-h-0 max-h-[min(42vh,320px)] flex flex-col">
@@ -1988,13 +2163,19 @@ Chưa có ảnh chụp màn hình.
 <option value="navigate">Navigate</option>
 <option value="click_selector">Click (selector)</option>
 <option value="click_text">Click (theo chữ)</option>
+<option value="click_id">Click (theo id)</option>
+<option value="click_name">Click (theo name)</option>
 <option value="type">Gõ text</option>
+<option value="type_id">Gõ text (theo id)</option>
+<option value="type_name">Gõ text (theo name)</option>
 <option value="wait">Chờ (ms)</option>
 </select>
 @if (formKind() === 'navigate') { <input type="url" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="https://..." [value]="formUrl()" (input)="onFormUrlInput($event)" /> }
 @if (formKind() === 'click_selector' || formKind() === 'type') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="CSS selector" [value]="formSelector()" (input)="onFormSelectorInput($event)" /> }
+@if (formKind() === 'click_id' || formKind() === 'type_id') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="DOM id (vd: login-btn)" [value]="formDomId()" (input)="onFormDomIdInput($event)" /> }
+@if (formKind() === 'click_name' || formKind() === 'type_name') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="DOM name (vd: email)" [value]="formDomName()" (input)="onFormDomNameInput($event)" /> }
 @if (formKind() === 'click_text') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="Chuỗi trên nút/link" [value]="formMatchText()" (input)="onFormMatchTextInput($event)" /> }
-@if (formKind() === 'type') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-green-200 sm:col-span-2" placeholder="Giá trị gõ" [value]="formValue()" (input)="onFormValueInput($event)" /> }
+@if (formKind() === 'type' || formKind() === 'type_id' || formKind() === 'type_name') { <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-green-200 sm:col-span-2" placeholder="Giá trị gõ" [value]="formValue()" (input)="onFormValueInput($event)" /> }
 @if (formKind() === 'wait') { <input type="number" min="0" max="120000" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white" [value]="formWaitMs()" (input)="onFormWaitMsInput($event)" /> }
 </div>
 <textarea class="w-full bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-gray-300 h-16 resize-none" placeholder="Kỳ vọng (tuỳ chọn)" [value]="formExpectation()" (input)="onFormExpectationInput($event)"></textarea>
@@ -2106,10 +2287,16 @@ Chưa có ảnh chụp màn hình.
 @if (formKind() === 'click_selector' || formKind() === 'type') {
 <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder="CSS selector" [value]="formSelector()" (input)="onFormSelectorInput($event)" />
 }
+@if (formKind() === 'click_id' || formKind() === 'type_id') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder='DOM id (vd: login-btn)' [value]="formDomId()" (input)="onFormDomIdInput($event)" />
+}
+@if (formKind() === 'click_name' || formKind() === 'type_name') {
+<input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-orange-200 font-mono sm:col-span-2" placeholder='DOM name (vd: email)' [value]="formDomName()" (input)="onFormDomNameInput($event)" />
+}
 @if (formKind() === 'click_text') {
 <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-white sm:col-span-2" placeholder="Chuỗi trên nút/link" [value]="formMatchText()" (input)="onFormMatchTextInput($event)" />
 }
-@if (formKind() === 'type') {
+@if (formKind() === 'type' || formKind() === 'type_id' || formKind() === 'type_name') {
 <input type="text" class="bg-dashboard-bg border border-dashboard-border rounded px-2 py-1.5 text-[12px] text-green-200 sm:col-span-2" placeholder="Giá trị gõ" [value]="formValue()" (input)="onFormValueInput($event)" />
 }
 @if (formKind() === 'wait') {
@@ -2128,7 +2315,7 @@ Thu DOM
 }
 <button type="button" (click)="saveAction()" class="bg-dashboard-primary hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">{{ editingId() ? 'Cập nhật' : 'Thêm bước' }}</button>
 <button type="button" (click)="loadActions()" class="border border-dashboard-border text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-border/40 disabled:opacity-40" [disabled]="actionsLoading()">Tải lại</button>
-<button type="button" (click)="runTest()" [disabled]="runLoading()" class="border border-dashboard-primary text-dashboard-primary text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10">Chạy test ngay</button>
+<button type="button" (click)="runTest()" [disabled]="runTestButtonDisabledForSelected()" class="border border-dashboard-primary text-dashboard-primary text-xs px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10">Chạy test ngay</button>
 </div>
 @if (aiFillError() && flowModalOpen()) {
 <p class="text-red-400 text-xs mt-1">{{ aiFillError() }}</p>
@@ -2183,7 +2370,7 @@ Thu DOM
 @if (flowModalTab() === 'run') {
 <div class="space-y-3">
 <div class="flex flex-wrap items-center gap-2 justify-between">
-@if (runLoading()) {
+@if (runPanelBusyForSelectedTestCase()) {
 <span class="text-amber-300 text-[11px] font-medium flex items-center gap-1 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded">
 <span class="material-symbols-outlined text-[12px]">progress_activity</span> Đang chạy test…
 </span>
@@ -2196,7 +2383,7 @@ Thu DOM
 } @else {
 <span class="text-gray-500 text-[11px] border border-gray-700 px-2 py-0.5 rounded">Chưa chạy</span>
 }
-<button type="button" (click)="runTest()" [disabled]="runLoading()" class="text-xs border border-dashboard-primary text-dashboard-primary px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10 disabled:opacity-40">Chạy lại</button>
+<button type="button" (click)="runTest()" [disabled]="runTestButtonDisabledForSelected()" class="text-xs border border-dashboard-primary text-dashboard-primary px-3 py-1.5 rounded-lg hover:bg-dashboard-primary/10 disabled:opacity-40">Chạy lại</button>
 </div>
 @if (runError()) {
 <p class="text-red-400 text-xs">{{ runError() }}</p>
@@ -2212,52 +2399,80 @@ Thu DOM
 <p class="text-[11px] text-gray-500">@if (runResult()?.finishedAt) { {{ runResult()!.finishedAt | date: 'short' }} · {{ (runResult()!.durationMs / 1000).toFixed(1) }}s } @else { — }</p>
 <div class="aspect-video bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
 @if (selectedShotDataUrl()) {
-<img [src]="selectedShotDataUrl()!" alt="Screenshot" class="max-w-full max-h-full object-contain" />
+<img [src]="selectedShotDataUrl()!" alt="Ảnh bước" class="max-w-full max-h-full object-contain object-top" />
 } @else {
-<span class="text-gray-500 text-sm px-4 text-center">Chưa có ảnh chụp cho lần chạy này.</span>
+<span class="text-gray-500 text-[12px] px-4 text-center leading-snug">@if (runResult()?.steps?.length) { Không có ảnh cho bước đang chọn. } @else { Chưa có lần chạy. }</span>
 }
 </div>
 <div class="flex gap-2 overflow-x-auto pb-1">
 @for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
-@if (s.screenshotBase64) {
-<button type="button" (click)="pickShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i">
-<img [src]="'data:image/png;base64,' + s.screenshotBase64" alt="" class="w-full h-full object-cover object-top" />
+@if (stepHasScreenshot(s)) {
+<button type="button" (click)="selectRunShot(i)" class="w-14 h-10 rounded border flex-shrink-0 overflow-hidden" [class.border-dashboard-primary]="selectedShotIndex() === i" [class.border-gray-700]="selectedShotIndex() !== i" [title]="s.name">
+<img [src]="stepScreenshotSrc(s)!" alt="" class="w-full h-full object-cover object-top" />
 </button>
 }
 }
 </div>
-<div class="text-[11px] text-gray-400">Hoàn thành: <span [class.text-dashboard-success-text]="runStats().failed === 0" [class.text-red-400]="runStats().failed > 0">{{ runStats().passed }}/{{ runStats().total }}</span></div>
+<div class="text-[11px] text-gray-400">Đạt <span [class.text-dashboard-success-text]="runStats().failed === 0" [class.text-red-400]="runStats().failed > 0">{{ runStats().passed }}/{{ runStats().total }}</span>@if (runStats().skipped > 0) { <span class="text-gray-600"> · </span><span class="text-amber-400/90">{{ runStats().skipped }} bỏ qua</span> }</div>
 <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
 <div class="h-full rounded-full transition-all" [class.bg-dashboard-success-text]="runStats().failed === 0" [class.bg-red-500]="runStats().failed > 0" [style.width]="runProgressWidth()"></div>
 </div>
 </div>
 }
 @if (runPanelTab() === 'steps') {
-<ul class="space-y-2 text-[12px] max-h-72 overflow-y-auto">
+<div class="max-h-80 overflow-y-auto space-y-2 pr-0.5">
+@if (!runResult()?.steps?.length && !runPanelBusyForSelectedTestCase()) {
+<p class="text-gray-500 text-[12px] py-6 text-center border border-dashed border-gray-700 rounded-lg">Chưa có dữ liệu bước.</p>
+} @else {
 @for (s of runResult()?.steps ?? []; track s.actionId) {
-<li class="rounded-lg border px-3 py-2 border-dashboard-border" [class.border-red-500/50]="s.status === 'failed'" [class.border-green-500/30]="s.status === 'passed'">
-<div class="flex justify-between gap-2"><span class="text-white font-medium">{{ s.order + 1 }}. {{ s.name }}</span><span class="text-[10px] uppercase" [class.text-red-400]="s.status === 'failed'" [class.text-dashboard-success-text]="s.status === 'passed'">{{ s.status }}</span></div>
-@if (s.message) {<p class="text-red-300 text-[11px] mt-1">{{ s.message }}</p>}
-</li>
-} @empty {
-<li class="text-gray-500">Chưa có lần chạy.</li>
+<div class="rounded-lg border px-2.5 py-2 border-dashboard-border bg-dashboard-bg/20" [class.border-red-500/45]="s.status === 'failed'" [class.border-emerald-500/25]="s.status === 'passed'">
+<div class="flex gap-2 items-start">
+<span class="shrink-0 w-5 h-5 rounded bg-gray-800 text-[10px] font-mono text-gray-400 flex items-center justify-center">{{ s.order + 1 }}</span>
+<div class="min-w-0 flex-1">
+<div class="flex justify-between gap-2 items-start">
+<p class="text-[12px] text-white font-medium leading-snug">{{ s.name }}</p>
+@if (s.status === 'passed') { <span class="material-symbols-outlined text-emerald-400 text-[16px] shrink-0">check_circle</span> }
+@else if (s.status === 'failed') { <span class="material-symbols-outlined text-red-400 text-[16px] shrink-0">cancel</span> }
+@else { <span class="material-symbols-outlined text-gray-500 text-[16px] shrink-0">skip_next</span> }
+</div>
+<p class="text-[10px] text-gray-500 mt-0.5 font-code-mono">{{ kindLabel(s.kind) }} · {{ s.durationMs }}ms</p>
+@if (s.message) {<p class="text-red-300 text-[11px] mt-1 leading-snug">{{ s.message }}</p>}
+</div>
+</div>
+</div>
 }
-</ul>
+}
+</div>
 }
 @if (runPanelTab() === 'log') {
-<pre class="text-[11px] text-gray-400 whitespace-pre-wrap font-mono bg-black/30 rounded-lg p-3 border border-gray-800 max-h-72 overflow-y-auto">{{ runResult()?.error || runError() || 'Không có log.' }}</pre>
+<div class="rounded-lg border border-gray-800 bg-[#0b0f14] overflow-hidden flex flex-col max-h-80">
+<div class="flex items-center justify-between gap-2 px-2 py-1 border-b border-gray-800 bg-gray-900/50 shrink-0">
+<span class="text-[10px] font-mono text-gray-500">run.log</span>
+<button type="button" (click)="copyRunLog()" [disabled]="!runResult() && !runError() && !runPanelBusyForSelectedTestCase()" class="text-[10px] px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none">Sao chép</button>
+</div>
+<div class="overflow-y-auto p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5 min-h-[120px]">
+@for (line of runLogEntries(); track line.key) {
+<p class="whitespace-pre-wrap break-words m-0" [class.text-gray-500]="line.level === 'meta'" [class.text-emerald-400/90]="line.level === 'step-pass'" [class.text-red-400]="line.level === 'step-fail' || line.level === 'fatal'" [class.text-amber-400/80]="line.level === 'step-skip'">{{ line.text }}</p>
+}
+</div>
+</div>
 }
 @if (runPanelTab() === 'shots') {
 <div class="space-y-2 max-h-80 overflow-y-auto">
-@for (s of runResult()?.steps ?? []; track s.actionId) {
-@if (s.screenshotBase64) {
-<div class="rounded border border-dashboard-border overflow-hidden">
-<p class="text-[10px] text-gray-500 px-2 py-1 bg-gray-900/80">{{ s.name }}</p>
-<img [src]="'data:image/png;base64,' + s.screenshotBase64" [alt]="s.name" class="w-full object-contain bg-gray-900 max-h-48" />
+@if (selectedShotDataUrl()) {
+<div class="rounded-lg border border-gray-700 overflow-hidden bg-black">
+<img [src]="selectedShotDataUrl()!" alt="Xem trước" class="w-full max-h-40 object-contain" />
 </div>
 }
+@for (s of runResult()?.steps ?? []; track s.actionId; let i = $index) {
+@if (stepHasScreenshot(s)) {
+<button type="button" (click)="selectRunShot(i)" class="w-full text-left rounded-lg border border-dashboard-border overflow-hidden hover:border-gray-500 transition-colors" [class.ring-2]="selectedShotIndex() === i" [class.ring-dashboard-primary]="selectedShotIndex() === i">
+<p class="text-[10px] text-gray-400 px-2 py-1 bg-gray-900/80 truncate">{{ s.order + 1 }}. {{ s.name }}</p>
+<img [src]="stepScreenshotSrc(s)!" [alt]="s.name" class="w-full object-contain bg-gray-900 max-h-36" />
+</button>
+}
 } @empty {
-<p class="text-gray-500 text-sm">Chưa có ảnh.</p>
+<p class="text-gray-500 text-sm py-4 text-center">Chưa có ảnh.</p>
 }
 </div>
 }
@@ -2340,10 +2555,10 @@ Thu DOM
             </h3>
             <div class="grid gap-3 max-h-[min(50vh,420px)] overflow-y-auto pr-1">
               @for (s of historyDetail()!.result.steps; track s.actionId) {
-              @if (s.screenshotBase64) {
+              @if (stepHasScreenshot(s)) {
               <div class="rounded-lg border border-dashboard-border overflow-hidden bg-gray-900/40">
                 <p class="text-[10px] text-gray-500 px-2 py-1 bg-gray-900/80 border-b border-dashboard-border">{{ s.order + 1 }}. {{ s.name }} · {{ s.kind }}</p>
-                <img [src]="'data:image/png;base64,' + s.screenshotBase64" [alt]="s.name" class="w-full object-contain max-h-56 bg-gray-950" />
+                <img [src]="stepScreenshotSrc(s)!" [alt]="s.name" class="w-full object-contain max-h-56 bg-gray-950" />
               </div>
               }
               }
@@ -2357,7 +2572,7 @@ Thu DOM
   </div>
 }
 
-@if (runToasts().length > 0 || batchJobs().length > 0 || runLoading()) {
+@if (runToasts().length > 0 || batchJobs().length > 0 || floatingManualRunProgressVisible() || manualRunInFlightOnAnotherTestCase()) {
 <div class="fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-2 w-[min(100vw-2rem,22rem)] pointer-events-none">
   @if (runToasts().length > 0) {
   <div class="flex flex-col gap-2 items-end pointer-events-auto w-full">
@@ -2388,7 +2603,14 @@ Thu DOM
   </div>
   }
 
-  @if (runLoading()) {
+  @if (manualRunInFlightOnAnotherTestCase()) {
+  <div class="pointer-events-auto w-full rounded-lg border border-gray-700/90 bg-[#0c1018]/95 px-3 py-2 text-[11px] text-gray-400 leading-snug">
+    Còn tiến trình chạy thủ công trên testcase khác.
+    <button type="button" (click)="openSidebarSection('runningtests')" class="text-dashboard-primary hover:underline ml-1">Mở Chạy test</button>
+  </div>
+  }
+
+  @if (floatingManualRunProgressVisible()) {
   <div
     class="pointer-events-auto w-full rounded-xl border border-amber-500/35 bg-[#0c1018]/98 backdrop-blur-md shadow-2xl overflow-hidden px-3 py-3"
     role="status"
@@ -2460,14 +2682,17 @@ Thu DOM
           @case ('error') {
             <span class="material-symbols-outlined text-red-400 text-[17px] shrink-0 mt-0.5">cancel</span>
           }
+          @case ('cancelled') {
+            <span class="material-symbols-outlined text-amber-400 text-[17px] shrink-0 mt-0.5">stop_circle</span>
+          }
         }
         <div class="flex-1 min-w-0">
           <div class="text-gray-100 truncate font-medium">{{ job.testCaseLabel }}</div>
           @if (job.featureLabel) {
           <div class="text-[10px] text-gray-500 truncate">{{ job.featureLabel }}</div>
           }
-          @if (job.status === 'error' && job.errorMessage) {
-          <div class="text-[10px] text-red-300/95 mt-1 leading-snug break-words">{{ job.errorMessage }}</div>
+          @if ((job.status === 'error' || job.status === 'cancelled') && job.errorMessage) {
+          <div class="text-[10px] text-red-300/95 mt-1 leading-snug break-words" [class.text-amber-200/90]="job.status === 'cancelled'">{{ job.errorMessage }}</div>
           }
         </div>
       </div>

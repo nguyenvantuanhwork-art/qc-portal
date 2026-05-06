@@ -22,7 +22,16 @@ export interface AiFillItemDto {
   notes?: string;
 }
 
-export type ActionKind = 'navigate' | 'click_selector' | 'click_text' | 'type' | 'wait';
+export type ActionKind =
+  | 'navigate'
+  | 'click_selector'
+  | 'click_text'
+  | 'click_id'
+  | 'click_name'
+  | 'type'
+  | 'type_id'
+  | 'type_name'
+  | 'wait';
 
 export interface ProjectDto {
   id: string;
@@ -95,6 +104,8 @@ export interface TestActionDto {
     url?: string;
     selector?: string;
     matchText?: string;
+    id?: string;
+    name?: string;
     value?: string;
     waitMs?: number;
   };
@@ -163,6 +174,8 @@ export interface RunStepDto {
   status: 'passed' | 'failed' | 'skipped';
   message?: string;
   url?: string;
+  /** Presigned GET từ R2 — ưu tiên hơn base64. */
+  screenshotUrl?: string;
   screenshotBase64?: string;
   durationMs: number;
 }
@@ -176,9 +189,17 @@ export interface RunResultDto {
   overallStatus: 'passed' | 'failed';
   steps: RunStepDto[];
   error?: string;
+  cancelled?: boolean;
 }
 
-export type BatchRunJobStatus = 'queued' | 'running' | 'done' | 'error';
+/** Dòng log kết quả chạy — dùng cho tab Log. */
+export type RunLogLine = {
+  key: string;
+  level: 'meta' | 'step-pass' | 'step-fail' | 'step-skip' | 'fatal';
+  text: string;
+};
+
+export type BatchRunJobStatus = 'queued' | 'running' | 'done' | 'error' | 'cancelled';
 
 export interface BatchRunJob {
   id: string;
@@ -219,6 +240,27 @@ export interface GlobalRunHistoryRow extends TestRunSummaryDto {
   projectName: string | null;
   projectKey: string | null;
   hasScreenshots: boolean;
+}
+
+/** GET /api/runs/active */
+export interface ActiveRunRowDto {
+  testCaseId: string;
+  startedAt: string;
+  triggeredByUserId: string | null;
+  triggeredByUsername: string | null;
+  source: 'manual' | 'schedule';
+  progress: {
+    stepOrdinal: number;
+    totalSteps: number;
+    stepName: string;
+    stepKind: ActionKind;
+  };
+  testCaseName: string | null;
+  testCaseKey: string | null;
+  featureId: string | null;
+  featureName: string | null;
+  projectId: string | null;
+  projectName: string | null;
 }
 
 /** Báo cáo tổng hợp (GET /api/reports/summary). */
@@ -334,6 +376,7 @@ export class App implements OnInit, OnDestroy {
     | 'feature'
     | 'testcase'
     | 'runhistory'
+    | 'runningtests'
     | 'schedules'
     | 'reports'
     | 'explorer'
@@ -393,11 +436,14 @@ export class App implements OnInit, OnDestroy {
   protected readonly formUrl = signal('');
   protected readonly formSelector = signal('');
   protected readonly formMatchText = signal('');
+  protected readonly formDomId = signal('');
+  protected readonly formDomName = signal('');
   protected readonly formValue = signal('');
   protected readonly formWaitMs = signal(1000);
   protected readonly formExpectation = signal('');
 
-  protected readonly runLoading = signal(false);
+  /** Test case đang chờ POST /run từ nút «Chạy test» (có thể nhiều TC song song khi đổi testcase). */
+  protected readonly manualRunInFlightTcIds = signal<ReadonlySet<string>>(new Set());
   protected readonly runError = signal<string | null>(null);
   protected readonly runResult = signal<RunResultDto | null>(null);
   protected readonly runPanelTab = signal<'overview' | 'steps' | 'shots' | 'log'>('overview');
@@ -428,6 +474,11 @@ export class App implements OnInit, OnDestroy {
   protected readonly globalRunHistoryLoading = signal(false);
   protected readonly globalRunHistoryError = signal<string | null>(null);
   protected readonly globalRunHistory = signal<GlobalRunHistoryRow[]>([]);
+
+  protected readonly activeRuns = signal<ActiveRunRowDto[]>([]);
+  protected readonly activeRunsLoading = signal(false);
+  protected readonly activeRunsError = signal<string | null>(null);
+  private activeRunsPollTimer: ReturnType<typeof setInterval> | null = null;
 
   protected readonly reportsLoading = signal(false);
   protected readonly reportsError = signal<string | null>(null);
@@ -530,6 +581,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopActiveRunsPolling();
     this.stopNotificationPolling();
     this.destroyReportCharts();
     for (const t of this.runToastTimers.values()) {
@@ -1102,8 +1154,12 @@ export class App implements OnInit, OnDestroy {
               body.testCases.find((t) => t.id === 'tc-google-search') ??
               body.testCases[0] ??
               null);
+          const prevTc = this.selectedTestCaseId();
           const tcId = preferred?.id ?? null;
           this.selectedTestCaseId.set(tcId);
+          if (prevTc !== tcId) {
+            this.syncRunPanelToSelectedTestCase();
+          }
           this.loadActions();
         },
         error: (e: HttpErrorResponse) => this.actionsError.set(e.message || 'Lỗi tải test case'),
@@ -1122,6 +1178,7 @@ export class App implements OnInit, OnDestroy {
     this.testCasesByFeature.set({});
     this.explorerExpandedFeatureIds.set([]);
     this.explorerLoadingFeatureIds.set([]);
+    this.syncRunPanelToSelectedTestCase();
     this.loadProjectMembers(p.id);
     this.loadFeatures(p.id);
   }
@@ -1132,6 +1189,7 @@ export class App implements OnInit, OnDestroy {
     this.selectedTestCaseId.set(null);
     this.testCases.set([]);
     this.actions.set([]);
+    this.syncRunPanelToSelectedTestCase();
     const pid = this.selectedProjectId();
     if (!pid) return;
     this.loadTestCases(pid, f.id);
@@ -1143,15 +1201,20 @@ export class App implements OnInit, OnDestroy {
     this.selectedTestCaseId.set(null);
     this.testCases.set([]);
     this.actions.set([]);
+    this.syncRunPanelToSelectedTestCase();
     const pid = this.selectedProjectId();
     if (!pid) return;
     this.loadTestCases(pid, f.id);
   }
 
   protected selectTestCase(tc: TestCaseDto): void {
+    const prevTc = this.selectedTestCaseId();
     this.currentSidebarSection.set('testcase');
     this.selectedTestCaseId.set(tc.id);
     this.menuOpenForId.set(null);
+    if (prevTc !== tc.id) {
+      this.syncRunPanelToSelectedTestCase();
+    }
     this.loadActions();
     if (this.testCaseTab() === 'history') {
       this.loadRunHistory();
@@ -1175,8 +1238,12 @@ export class App implements OnInit, OnDestroy {
       if (pid) this.loadTestCases(pid, featureId);
     }
 
+    const prevTc = this.selectedTestCaseId();
     this.selectedTestCaseId.set(tc.id);
     this.menuOpenForId.set(null);
+    if (prevTc !== tc.id) {
+      this.syncRunPanelToSelectedTestCase();
+    }
     this.loadActions();
     if (this.testCaseTab() === 'history') {
       this.loadRunHistory();
@@ -1197,11 +1264,18 @@ export class App implements OnInit, OnDestroy {
       | 'feature'
       | 'testcase'
       | 'runhistory'
+      | 'runningtests'
       | 'schedules'
       | 'reports',
   ): void {
     const prev = this.currentSidebarSection();
     this.currentSidebarSection.set(section);
+    if (section === 'runningtests') {
+      this.loadActiveRuns();
+      this.startActiveRunsPolling();
+    } else {
+      this.stopActiveRunsPolling();
+    }
     if (prev === 'reports' && section !== 'reports') {
       this.destroyReportCharts();
     }
@@ -1947,6 +2021,130 @@ export class App implements OnInit, OnDestroy {
       });
   }
 
+  private startActiveRunsPolling(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.stopActiveRunsPolling();
+    this.activeRunsPollTimer = setInterval(() => {
+      if (this.currentSidebarSection() !== 'runningtests') {
+        this.stopActiveRunsPolling();
+        return;
+      }
+      this.loadActiveRuns(false);
+    }, 2000);
+  }
+
+  private stopActiveRunsPolling(): void {
+    if (this.activeRunsPollTimer != null) {
+      clearInterval(this.activeRunsPollTimer);
+      this.activeRunsPollTimer = null;
+    }
+  }
+
+  protected loadActiveRuns(showLoading = true): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (showLoading) this.activeRunsLoading.set(true);
+    this.activeRunsError.set(null);
+    this.http
+      .get<{ ok: boolean; runs?: ActiveRunRowDto[]; error?: string }>(`${QC_API_BASE_URL}/api/runs/active`)
+      .subscribe({
+        next: (body) => {
+          if (showLoading) this.activeRunsLoading.set(false);
+          if (!body.ok || !body.runs) {
+            this.activeRunsError.set(body.error ?? 'Không tải được danh sách');
+            this.activeRuns.set([]);
+            return;
+          }
+          this.activeRuns.set(body.runs);
+        },
+        error: (e: HttpErrorResponse) => {
+          if (showLoading) this.activeRunsLoading.set(false);
+          this.activeRunsError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng',
+          );
+          this.activeRuns.set([]);
+        },
+      });
+  }
+
+  protected cancelServerActiveRun(testCaseId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.http
+      .post<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/test-cases/${testCaseId}/run/cancel`, {})
+      .subscribe({
+        next: (body) => {
+          if (!body.ok) {
+            this.activeRunsError.set(body.error ?? 'Không dừng được');
+            return;
+          }
+          this.loadActiveRuns(false);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.activeRunsError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  protected cancelCurrentTestRun(): void {
+    const id = this.selectedTestCaseId();
+    if (!id) return;
+    this.cancelServerActiveRun(id);
+  }
+
+  protected activeRunProgressPercent(row: ActiveRunRowDto): number {
+    const t = row.progress.totalSteps;
+    if (t <= 0) return 0;
+    if (row.progress.stepOrdinal <= 0) return 0;
+    return Math.min(100, Math.round((row.progress.stepOrdinal / t) * 100));
+  }
+
+  protected activeRunStepLine(row: ActiveRunRowDto): string {
+    const p = row.progress;
+    if (p.totalSteps <= 0) return '—';
+    if (p.stepOrdinal <= 0) return `Khởi động · ${p.totalSteps} bước`;
+    const name = p.stepName?.trim() ? p.stepName : this.kindLabel(p.stepKind);
+    return `${p.stepOrdinal}/${p.totalSteps} · ${name}`;
+  }
+
+  protected activeRunBreadcrumb(row: ActiveRunRowDto): string {
+    const parts = [row.projectName, row.featureName, row.testCaseName].filter(Boolean);
+    return parts.length ? parts.join(' · ') : row.testCaseId;
+  }
+
+  protected openActiveRunInEditor(row: ActiveRunRowDto): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const pid = row.projectId?.trim();
+    const fid = row.featureId?.trim();
+    const tcid = row.testCaseId?.trim();
+    if (!pid || !fid || !tcid) return;
+    this.currentSidebarSection.set('testcase');
+    if (this.selectedProjectId() !== pid) {
+      this.selectedProjectId.set(pid);
+      this.selectedFeatureId.set(null);
+      this.testCases.set([]);
+      this.actions.set([]);
+      this.testCasesByFeature.set({});
+      this.loadProjectMembers(pid);
+    }
+    this.http
+      .get<{ ok: boolean; features?: FeatureDto[]; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${pid}/features`,
+      )
+      .subscribe({
+        next: (body) => {
+          if (!body.ok || !body.features) return;
+          this.features.set(body.features);
+          this.selectedFeatureId.set(fid);
+          this.loadTestCases(pid, fid, { selectTestCaseId: tcid });
+        },
+        error: (e: HttpErrorResponse) =>
+          this.actionsError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi tải feature',
+          ),
+      });
+  }
+
   protected globalRunBreadcrumb(row: GlobalRunHistoryRow): string {
     const parts = [row.projectName, row.featureName, row.testCaseName].filter(Boolean);
     return parts.length ? parts.join(' · ') : row.testCaseId;
@@ -2125,6 +2323,93 @@ export class App implements OnInit, OnDestroy {
     return `${tc.key ?? tc.id} - ${tc.name}`;
   }
 
+  /** Nhãn ổn định khi bắt đầu chạy (trước khi đổi testcase). */
+  private labelSnapshotForTestCaseId(testCaseId: string): string {
+    const fromCache = this.findTestCaseById(testCaseId);
+    const tc = fromCache ?? this.testCases().find((x) => x.id === testCaseId);
+    if (!tc) return testCaseId;
+    return `${tc.key ?? tc.id} - ${tc.name}`;
+  }
+
+  private addManualRunTc(testCaseId: string): void {
+    this.manualRunInFlightTcIds.update((s) => new Set(s).add(testCaseId));
+  }
+
+  private removeManualRunTc(testCaseId: string): void {
+    this.manualRunInFlightTcIds.update((s) => {
+      const n = new Set(s);
+      n.delete(testCaseId);
+      return n;
+    });
+  }
+
+  protected manualRunInFlightForTestCase(testCaseId: string): boolean {
+    return this.manualRunInFlightTcIds().has(testCaseId);
+  }
+
+  /** Panel phải hiển thị trạng thái «đang chạy» cho testcase đang mở. */
+  protected runPanelBusyForSelectedTestCase(): boolean {
+    const id = this.selectedTestCaseId();
+    if (!id) return false;
+    if (this.manualRunInFlightForTestCase(id)) return true;
+    return this.batchRunningJob()?.testCaseId === id;
+  }
+
+  protected runTestButtonDisabledForSelected(): boolean {
+    const id = this.selectedTestCaseId();
+    if (!id) return true;
+    if (this.manualRunInFlightForTestCase(id)) return true;
+    if (this.batchRunningJob()?.testCaseId === id) return true;
+    return false;
+  }
+
+  /** Nút Dừng trên toolbar: chỉ khi đúng TC đang chạy (thủ công hoặc lô). */
+  protected showToolbarStopForSelectedTestCase(): boolean {
+    const id = this.selectedTestCaseId();
+    if (!id) return false;
+    if (this.manualRunInFlightForTestCase(id)) return true;
+    return this.batchRunningJob()?.testCaseId === id;
+  }
+
+  protected floatingManualRunProgressVisible(): boolean {
+    const id = this.selectedTestCaseId();
+    return Boolean(id && this.manualRunInFlightForTestCase(id));
+  }
+
+  /** Có POST /run thủ công đang chờ trên testcase khác với ô đang mở. */
+  protected manualRunInFlightOnAnotherTestCase(): boolean {
+    const sel = this.selectedTestCaseId();
+    const set = this.manualRunInFlightTcIds();
+    if (set.size === 0) return false;
+    if (!sel) return true;
+    return [...set].some((id) => id !== sel);
+  }
+
+  /** Gọi khi `selectedTestCaseId` đổi sang giá trị khác (hoặc về null). */
+  private syncRunPanelToSelectedTestCase(): void {
+    const sel = this.selectedTestCaseId();
+    if (!sel) {
+      this.runResult.set(null);
+      this.runError.set(null);
+      this.runAnalysisText.set(null);
+      this.runAnalysisError.set(null);
+      return;
+    }
+    const r = this.runResult();
+    if (r && r.testCaseId !== sel) {
+      this.runResult.set(null);
+      this.runError.set(null);
+      this.runAnalysisText.set(null);
+      this.runAnalysisError.set(null);
+      return;
+    }
+    if (!r) {
+      this.runError.set(null);
+      this.runAnalysisText.set(null);
+      this.runAnalysisError.set(null);
+    }
+  }
+
   protected findTestCaseById(testCaseId: string): TestCaseDto | null {
     const by = this.testCasesByFeature();
     for (const fid of Object.keys(by)) {
@@ -2171,7 +2456,9 @@ export class App implements OnInit, OnDestroy {
 
   protected runSelectedBatch(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    const ids = [...new Set(this.batchSelectedTcIds())];
+    const ids = [...new Set(this.batchSelectedTcIds())].filter(
+      (id) => !this.manualRunInFlightForTestCase(id),
+    );
     if (ids.length === 0) return;
     const newJobs: BatchRunJob[] = ids.map((testCaseId) => {
       const tc = this.findTestCaseById(testCaseId);
@@ -2202,30 +2489,39 @@ export class App implements OnInit, OnDestroy {
     this.batchJobs.set(queue.map((j, i) => (i === idx ? { ...j, status: 'running' as const } : j)));
 
     this.http
-      .post<{ ok: boolean; result?: RunResultDto; error?: string }>(
-        `${QC_API_BASE_URL}/api/test-cases/${job.testCaseId}/run`,
-        {},
-      )
+      .post<{
+        ok: boolean;
+        result?: RunResultDto;
+        error?: string;
+        cancelled?: boolean;
+      }>(`${QC_API_BASE_URL}/api/test-cases/${job.testCaseId}/run`, {})
       .subscribe({
         next: (body) => {
+          const cancelled = Boolean(body.cancelled || body.result?.cancelled);
           const failed =
             !body.result ||
-            body.result.overallStatus === 'failed' ||
-            body.result.ok === false;
-          const errMsg = failed
-            ? body.result?.error ??
-              body.result?.steps?.find((s) => s.status === 'failed')?.message ??
-              body.error ??
-              'Test thất bại'
-            : undefined;
+            (!cancelled &&
+              (body.result.overallStatus === 'failed' || body.result.ok === false));
+          const errMsg = cancelled
+            ? (body.result?.error ?? 'Đã dừng')
+            : failed
+              ? body.result?.error ??
+                body.result?.steps?.find((s) => s.status === 'failed')?.message ??
+                body.error ??
+                'Test thất bại'
+              : undefined;
 
           this.batchJobs.update((list) =>
             list.map((j) =>
               j.id === job.id
                 ? {
                     ...j,
-                    status: failed ? ('error' as const) : ('done' as const),
-                    errorMessage: failed ? errMsg : undefined,
+                    status: cancelled
+                      ? ('cancelled' as const)
+                      : failed
+                        ? ('error' as const)
+                        : ('done' as const),
+                    errorMessage: failed || cancelled ? errMsg : undefined,
                     result: body.result,
                   }
                 : j,
@@ -2244,7 +2540,12 @@ export class App implements OnInit, OnDestroy {
             this.loadRunHistory();
           }
 
-          this.enqueueRunToast(job.testCaseId, job.testCaseLabel, !failed, failed ? errMsg : undefined);
+          this.enqueueRunToast(
+            job.testCaseId,
+            job.testCaseLabel,
+            !failed && !cancelled,
+            failed || cancelled ? errMsg : undefined,
+          );
           this.loadNotifications(false);
           this.batchRunnerBusy.set(false);
           this.drainBatchQueue();
@@ -2285,14 +2586,18 @@ export class App implements OnInit, OnDestroy {
   protected batchProgressPercent(): number {
     const jobs = this.batchJobs();
     if (jobs.length === 0) return 0;
-    const done = jobs.filter((j) => j.status === 'done' || j.status === 'error').length;
+    const done = jobs.filter(
+      (j) => j.status === 'done' || j.status === 'error' || j.status === 'cancelled',
+    ).length;
     return Math.round((done / jobs.length) * 100);
   }
 
   protected batchSummaryLine(): string {
     const jobs = this.batchJobs();
     const n = jobs.length;
-    const done = jobs.filter((j) => j.status === 'done' || j.status === 'error').length;
+    const done = jobs.filter(
+      (j) => j.status === 'done' || j.status === 'error' || j.status === 'cancelled',
+    ).length;
     const q = jobs.filter((j) => j.status === 'queued').length;
     const run = jobs.some((j) => j.status === 'running');
     if (run) return `Đang chạy · ${done}/${n} xong · ${q} chờ`;
@@ -2319,7 +2624,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   protected batchHasTerminalJobs(): boolean {
-    return this.batchJobs().some((j) => j.status === 'done' || j.status === 'error');
+    return this.batchJobs().some(
+      (j) => j.status === 'done' || j.status === 'error' || j.status === 'cancelled',
+    );
   }
 
   protected batchDismissPanelDisabled(): boolean {
@@ -2331,7 +2638,11 @@ export class App implements OnInit, OnDestroy {
       navigate: 'Navigate',
       click_selector: 'Click (selector)',
       click_text: 'Click (theo chữ)',
+      click_id: 'Click (theo id)',
+      click_name: 'Click (theo name)',
       type: 'Gõ text',
+      type_id: 'Gõ text (theo id)',
+      type_name: 'Gõ text (theo name)',
       wait: 'Chờ',
     };
     return m[kind] ?? kind;
@@ -2345,8 +2656,16 @@ export class App implements OnInit, OnDestroy {
         return a.config.selector ?? '—';
       case 'click_text':
         return a.config.matchText ?? '—';
+      case 'click_id':
+        return `id: ${a.config.id ?? '—'}`;
+      case 'click_name':
+        return `name: ${a.config.name ?? '—'}`;
       case 'type':
         return `Sel: ${a.config.selector ?? '—'} → "${a.config.value ?? ''}"`;
+      case 'type_id':
+        return `id: ${a.config.id ?? '—'} → "${a.config.value ?? ''}"`;
+      case 'type_name':
+        return `name: ${a.config.name ?? '—'} → "${a.config.value ?? ''}"`;
       case 'wait':
         return `${a.config.waitMs ?? 0} ms`;
       default:
@@ -2915,6 +3234,14 @@ export class App implements OnInit, OnDestroy {
     this.formMatchText.set((e.target as HTMLInputElement).value);
   }
 
+  protected onFormDomIdInput(e: Event): void {
+    this.formDomId.set((e.target as HTMLInputElement).value);
+  }
+
+  protected onFormDomNameInput(e: Event): void {
+    this.formDomName.set((e.target as HTMLInputElement).value);
+  }
+
   protected onFormValueInput(e: Event): void {
     this.formValue.set((e.target as HTMLInputElement).value);
   }
@@ -2935,6 +3262,8 @@ export class App implements OnInit, OnDestroy {
     this.formUrl.set('');
     this.formSelector.set('');
     this.formMatchText.set('');
+    this.formDomId.set('');
+    this.formDomName.set('');
     this.formValue.set('');
     this.formWaitMs.set(1000);
     this.formExpectation.set('');
@@ -2947,6 +3276,8 @@ export class App implements OnInit, OnDestroy {
     this.formUrl.set(a.config.url ?? '');
     this.formSelector.set(a.config.selector ?? '');
     this.formMatchText.set(a.config.matchText ?? '');
+    this.formDomId.set(a.config.id ?? '');
+    this.formDomName.set(a.config.name ?? '');
     this.formValue.set(a.config.value != null ? String(a.config.value) : '');
     this.formWaitMs.set(typeof a.config.waitMs === 'number' ? a.config.waitMs : 1000);
     this.formExpectation.set(a.expectation ?? '');
@@ -2961,8 +3292,16 @@ export class App implements OnInit, OnDestroy {
         return { selector: this.formSelector().trim() };
       case 'click_text':
         return { matchText: this.formMatchText().trim() };
+      case 'click_id':
+        return { id: this.formDomId().trim() };
+      case 'click_name':
+        return { name: this.formDomName().trim() };
       case 'type':
         return { selector: this.formSelector().trim(), value: this.formValue() };
+      case 'type_id':
+        return { id: this.formDomId().trim(), value: this.formValue() };
+      case 'type_name':
+        return { name: this.formDomName().trim(), value: this.formValue() };
       case 'wait':
         return { waitMs: Math.max(0, Math.floor(this.formWaitMs())) };
       default:
@@ -3100,7 +3439,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   protected runTest(): void {
-    if (!isPlatformBrowser(this.platformId) || this.runLoading()) {
+    if (!isPlatformBrowser(this.platformId)) {
       return;
     }
     const testCaseId = this.selectedTestCaseId();
@@ -3108,55 +3447,87 @@ export class App implements OnInit, OnDestroy {
       this.runError.set('Chưa chọn test case');
       return;
     }
-    this.runLoading.set(true);
-    this.runError.set(null);
-    this.runResult.set(null);
+    if (this.manualRunInFlightForTestCase(testCaseId)) {
+      return;
+    }
+    if (this.batchRunningJob()?.testCaseId === testCaseId) {
+      return;
+    }
+
+    const labelSnapshot = this.labelSnapshotForTestCaseId(testCaseId);
+    this.addManualRunTc(testCaseId);
+    if (this.selectedTestCaseId() === testCaseId) {
+      this.runError.set(null);
+      this.runResult.set(null);
+    }
     this.runPanelTab.set('overview');
     this.selectedShotIndex.set(0);
     this.runAnalysisText.set(null);
     this.runAnalysisError.set(null);
 
     this.http
-      .post<{ ok: boolean; result?: RunResultDto; error?: string }>(
-        `${QC_API_BASE_URL}/api/test-cases/${testCaseId}/run`,
-        {},
-      )
+      .post<{
+        ok: boolean;
+        result?: RunResultDto;
+        error?: string;
+        cancelled?: boolean;
+      }>(`${QC_API_BASE_URL}/api/test-cases/${testCaseId}/run`, {})
       .subscribe({
         next: (body) => {
-          this.runLoading.set(false);
-          const label = this.selectedTestCaseLabel();
+          this.removeManualRunTc(testCaseId);
+          const stillHere = this.selectedTestCaseId() === testCaseId;
+          const cancelled = Boolean(body.cancelled || body.result?.cancelled);
           if (body.result) {
-            this.runResult.set(body.result);
-            const failedIdx = body.result.steps.findIndex((s) => s.status === 'failed');
-            const lastOk = body.result.steps.length - 1;
-            this.selectedShotIndex.set(failedIdx >= 0 ? failedIdx : lastOk >= 0 ? lastOk : 0);
-            this.loadRunHistory();
-            const failed = !body.result.ok || body.result.overallStatus === 'failed';
-            const errMsg = failed
-              ? body.result.error ??
+            const failed = !cancelled && (!body.result.ok || body.result.overallStatus === 'failed');
+            const errMsg = cancelled
+              ? (body.result.error ?? 'Đã dừng')
+              : failed
+                ? body.result.error ??
                   body.result.steps.find((s) => s.status === 'failed')?.message ??
                   'Test thất bại'
-              : undefined;
-            this.runError.set(failed ? errMsg ?? null : null);
-            this.enqueueRunToast(testCaseId, label, !failed, failed ? errMsg : undefined);
+                : undefined;
+            if (stillHere) {
+              this.runResult.set(body.result);
+              const failedIdx = body.result.steps.findIndex((s) => s.status === 'failed');
+              const lastOk = body.result.steps.length - 1;
+              this.selectedShotIndex.set(failedIdx >= 0 ? failedIdx : lastOk >= 0 ? lastOk : 0);
+              this.loadRunHistory();
+              this.runError.set(failed ? errMsg ?? null : null);
+            }
+            this.enqueueRunToast(
+              testCaseId,
+              labelSnapshot,
+              !failed && !cancelled,
+              failed || cancelled ? errMsg : undefined,
+            );
             this.loadNotifications(false);
           } else {
-            this.runResult.set(null);
-            const msg = body.error ?? 'Không có kết quả chạy';
-            this.runError.set(msg);
-            this.enqueueRunToast(testCaseId, label, false, msg);
+            if (stillHere) {
+              this.runResult.set(null);
+              const msg = body.error ?? 'Không có kết quả chạy';
+              this.runError.set(msg);
+            }
+            this.enqueueRunToast(
+              testCaseId,
+              labelSnapshot,
+              false,
+              body.error ?? 'Không có kết quả chạy',
+            );
             this.loadNotifications(false);
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.runLoading.set(false);
+          this.removeManualRunTc(testCaseId);
+          const stillHere = this.selectedTestCaseId() === testCaseId;
           const payload = err.error as { error?: string } | undefined;
           const msg =
             typeof payload?.error === 'string'
               ? payload.error
               : err.message || 'Lỗi khi chạy test';
-          this.runError.set(msg);
-          this.enqueueRunToast(testCaseId, this.selectedTestCaseLabel(), false, msg);
+          if (stillHere) {
+            this.runError.set(msg);
+          }
+          this.enqueueRunToast(testCaseId, labelSnapshot, false, msg);
         },
       });
   }
@@ -3165,19 +3536,102 @@ export class App implements OnInit, OnDestroy {
     const steps = this.runResult()?.steps ?? [];
     const i = this.selectedShotIndex();
     const s = steps[i];
-    if (!s?.screenshotBase64) {
-      return null;
-    }
-    return `data:image/png;base64,${s.screenshotBase64}`;
+    return this.stepScreenshotSrc(s ?? null);
   }
 
-  protected pickShot(index: number): void {
+  /** Nguồn ảnh cho một bước: URL (R2 presigned) hoặc data URL base64 (dữ liệu cũ / khi không bật R2). */
+  protected stepScreenshotSrc(s: RunStepDto | null | undefined): string | null {
+    if (!s) return null;
+    const u = s.screenshotUrl?.trim();
+    if (u) return u;
+    const b = s.screenshotBase64?.trim();
+    return b ? `data:image/png;base64,${b}` : null;
+  }
+
+  protected stepHasScreenshot(s: RunStepDto | null | undefined): boolean {
+    return this.stepScreenshotSrc(s) !== null;
+  }
+
+  /** Chọn ảnh theo chỉ số bước (không đổi tab — phù hợp carousel ở Tổng quan). */
+  protected selectRunShot(index: number): void {
     this.selectedShotIndex.set(index);
-    this.runPanelTab.set('shots');
   }
 
   protected setRunTab(tab: 'overview' | 'steps' | 'shots' | 'log'): void {
     this.runPanelTab.set(tab);
+  }
+
+  protected runLogEntries(): RunLogLine[] {
+    const out: RunLogLine[] = [];
+    if (this.runPanelBusyForSelectedTestCase()) {
+      out.push({ key: 'loading', level: 'meta', text: 'Đang chạy Puppeteer…' });
+      return out;
+    }
+    const r = this.runResult();
+    const httpErr = this.runError();
+    if (!r && !httpErr) {
+      out.push({ key: 'empty', level: 'meta', text: 'Chưa có lần chạy.' });
+      return out;
+    }
+    if (r) {
+      out.push({
+        key: 'start',
+        level: 'meta',
+        text: `Bắt đầu: ${new Date(r.startedAt).toLocaleString()} · ${(r.durationMs / 1000).toFixed(1)}s`,
+      });
+      out.push({ key: 'tc', level: 'meta', text: `Test case: ${r.testCaseId}` });
+      out.push({
+        key: 'status',
+        level: r.overallStatus === 'passed' ? 'step-pass' : 'step-fail',
+        text: `Kết quả: ${r.overallStatus.toUpperCase()}`,
+      });
+      out.push({ key: 'sep', level: 'meta', text: '────────────────────────────────────────' });
+      for (const s of r.steps) {
+        const n = String(s.order + 1).padStart(2, '0');
+        const kind = this.kindLabel(s.kind);
+        const ms = `${s.durationMs}ms`;
+        const urlBit = s.url ? ` · ${this.truncateMiddle(s.url, 48)}` : '';
+        let level: RunLogLine['level'] = 'step-pass';
+        if (s.status === 'failed') level = 'step-fail';
+        else if (s.status === 'skipped') level = 'step-skip';
+        out.push({
+          key: `${s.actionId}-line`,
+          level,
+          text: `${n}  ${s.name}  [${kind}]  ${s.status.toUpperCase()}  ${ms}${urlBit}`,
+        });
+        if (s.message?.trim()) {
+          out.push({ key: `${s.actionId}-msg`, level: 'step-fail', text: `    → ${s.message.trim()}` });
+        }
+      }
+      if (r.error?.trim()) {
+        out.push({ key: 'err', level: 'fatal', text: r.error.trim() });
+      }
+    } else if (httpErr) {
+      out.push({ key: 'http', level: 'fatal', text: httpErr });
+    }
+    return out;
+  }
+
+  protected runLogPlain(): string {
+    return this.runLogEntries()
+      .map((l) => l.text)
+      .join('\n');
+  }
+
+  protected copyRunLog(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const text = this.runLogPlain();
+    if (!text) return;
+    void navigator.clipboard.writeText(text).catch(() => {
+      /* bỏ qua */
+    });
+  }
+
+  protected truncateMiddle(s: string, max = 48): string {
+    const t = s.trim();
+    if (t.length <= max) return t;
+    const edge = Math.max(4, Math.floor((max - 1) / 2));
+    return `${t.slice(0, edge)}…${t.slice(-edge)}`;
   }
 
   protected setTestCaseTab(tab: 'steps' | 'data' | 'settings' | 'history'): void {
@@ -3248,11 +3702,12 @@ export class App implements OnInit, OnDestroy {
     this.historyDetailLoading.set(false);
   }
 
-  protected runStats(): { passed: number; failed: number; total: number } {
+  protected runStats(): { passed: number; failed: number; skipped: number; total: number } {
     const steps = this.runResult()?.steps ?? [];
     return {
       passed: steps.filter((s) => s.status === 'passed').length,
       failed: steps.filter((s) => s.status === 'failed').length,
+      skipped: steps.filter((s) => s.status === 'skipped').length,
       total: steps.length,
     };
   }
