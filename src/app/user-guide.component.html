@@ -1,0 +1,221 @@
+<div class="rounded-lg border border-dashboard-border bg-dashboard-surface overflow-hidden ug-doc shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+  <header class="ug-doc-header px-6 py-6 sm:px-8">
+    <p class="ug-doc-kicker">Tài liệu người dùng</p>
+    <h1 class="ug-doc-title">Giới thiệu Testflow</h1>
+    <p class="ug-doc-summary">
+      Testflow là cổng làm việc cho nhóm QA và dev: quản lý testcase theo cấu trúc dự án, mô tả từng bước tự động hoá trình duyệt, chạy thử trên máy chủ và xem lại kết quả.       Trang này giải thích các khái niệm chính và chỗ bấm trên giao diện, không thay cho hướng dẫn triển khai backend hay cấu hình hạ tầng.
+    </p>
+  </header>
+
+  <div class="ug-doc-scroll px-6 py-6 sm:px-8 border-t border-white/[0.06]">
+    <div class="ug-doc-layout">
+      <aside class="ug-doc-aside mb-6 lg:mb-0 lg:pr-4">
+        <nav aria-label="Trong mục này">
+          <p id="ug-toc-heading" class="ug-toc-label">Trong mục này</p>
+          <ul class="ug-toc-list" aria-labelledby="ug-toc-heading">
+            @for (link of tocLinks; track link.id) {
+              <li>
+                <button type="button" class="ug-toc-btn" (click)="scrollToAnchor(link.id)">
+                  {{ link.label }}
+                </button>
+              </li>
+            }
+          </ul>
+        </nav>
+      </aside>
+
+      <div class="ug-doc-main">
+        <section id="ug-intro" class="ug-section">
+          <h2>Tổng quan</h2>
+          <p>
+            Mọi thứ xoay quanh một chuỗi chọn: <em>dự án</em>, rồi <em>feature</em>, rồi <em>test case</em>. Khi đã chọn đủ ba lớp đó, phần giữa và phải của màn hình mới thật sự “sống”: bạn soạn danh sách bước, gắn tiền đề, bấm chạy, đọc log và ảnh chụp.
+            Nếu bạn mới mở cổng lần đầu, cứ coi Testflow như một IDE tối giản cho kịch bản Puppeteer: trình tự bước là mã nguồn, lần chạy là biên dịch và thực thi.
+          </p>
+          <p>
+            Một lượt làm việc điển hình trông như sau: chọn dự án ở thanh trên cùng, vào mục sidebar <strong class="text-gray-200 font-medium">Test case</strong>, duyệt explorer bên trái để chọn đúng testcase,
+            chỉnh các bước ở giữa, rồi dùng nút chạy và bảng kết quả bên phải để kiểm chứng. Không bắt buộc đi theo thứ tự ấy mỗi lần, nhưng đó là con đường ít nhánh nhất khi bạn còn làm quen.
+          </p>
+        </section>
+
+        <section id="ug-auth" class="ug-section">
+          <h2>Tài khoản và phiên đăng nhập</h2>
+          <p>
+            Bạn đăng nhập bằng tên và mật khẩu do quản trị cấp. Hệ thống phân biệt vai trò ở mức thô — thường là <span class="ug-code">admin</span> và <span class="ug-code">user</span> — và quyết định xem ai được mời thành viên dự án, chỉnh nhóm, hay đụng tới cài đặt runner.
+            Phần chi tiết quyền phụ thuộc cách tổ chức của bạn; nếu một nút bị tắt hoặc thiếu, khả năng cao là tài khoản hiện tại không nằm trong nhóm được phép thao tác đó.
+          </p>
+          <p>
+            Để kết thúc phiên, dùng vùng tài khoản ở góc phải header. Giữ phiên làm việc sạch (đặc biệt trên máy dùng chung) vẫn quan trọng dù cổng chạy trên trình duyệt.
+          </p>
+        </section>
+
+        <section id="ug-nav" class="ug-section">
+          <h2>Điều hướng: sidebar và dòng breadcrumb</h2>
+          <p>
+            Thanh dọc bên trái chia việc theo cụm. Nhóm <strong class="text-gray-200 font-medium">Quản lý</strong> gồm dự án, feature, test case và gói thao tác — tức là những gì bạn “định nghĩa” trước khi chạy.
+            <strong class="text-gray-200 font-medium">Thực thi</strong> tập trung vào những gì đang hoặc sẽ chạy: tiến trình hiện tại, lịch sử, lịch tự động. <strong class="text-gray-200 font-medium">Báo cáo</strong> và <strong class="text-gray-200 font-medium">Cấu hình</strong> chứa biểu đồ và cài đặt dự án, thành viên, nhóm.
+          </p>
+          <p>
+            Dòng breadcrumb ngay dưới header phản ánh đúng bối cảnh đang chọn: tên feature và mã testcase nổi bật để bạn không nhầm lẫn khi mở nhiều tab trình duyệt hay chuyển qua lại giữa các dự án.
+          </p>
+        </section>
+
+        <section id="ug-explorer" class="ug-section">
+          <h2>Explorer và phạm vi testcase</h2>
+          <p>
+            Trong màn test case, cột explorer liệt kê feature và các testcase con. Ô tìm kiếm lọc theo nhãn hiển thị; không cần nhớ đúng id nếu bạn nhớ một phần tên hoặc mã hiển thị.
+            Khi một feature có nhiều testcase, nên thói quen thu gọn những nhánh không dùng để giữ tầm nhìn.
+          </p>
+          <p>
+            Mục <em>Phạm vi test case</em> (dropdown gần ô tìm kiếm) lọc danh sách theo <em>nhóm</em> được giao cho bạn. Nó có ích trong dự án lớn: bạn chỉ thấy phần việc thuộc sprint hoặc squad của mình, thay vì toàn bộ kho testcase.
+          </p>
+          <p>
+            Chế độ chọn nhiều testcase và chạy lần lượt dành cho bài kiểm tra hồi quy ngắn: bạn đánh dấu vài case, nhấn chạy, rồi theo dõi hàng chờ và kết quả từng phần. Độ trễ giữa các lần chạy phụ thuộc cấu hình và tải server; nếu cần tách hoàn toàn, vẫn nên đặt lịch trong mục lịch chạy.
+          </p>
+        </section>
+
+        <section id="ug-steps" class="ug-section">
+          <h2>Bước thao tác và Puppeteer</h2>
+          <p>
+            Mỗi bước là một lệnh gửi tới engine tự động hoá trình duyệt: điều hướng, nhấp, gõ phím, chờ một khoảng thời gian. Thuộc tính của bước gồm <em>tên hiển thị</em>, <em>loại</em> (<span class="ug-code">kind</span>), <em>cấu hình</em> (selector, URL, văn bản khớp, …) và phần <em>kỳ vọng</em> tùy chọn để ghi lại ý định kiểm tra.
+            Bạn có thể kéo thả để đổi thứ tự; thứ tự đã lưu là thứ tự thực thi.
+          </p>
+          <p>
+            Menu ba chấm trên từng dòng mở các thao tác sửa, xoá hoặc tạm tắt bước. Bước bị tắt vẫn nằm trong kịch bản nhưng không chạy — hữu ích khi bạn đang thử nghiệm một nhánh giao diện mới mà chưa muốn xoá hẳn bước cũ.
+          </p>
+          <h3>Các loại bước thường gặp</h3>
+          <p>
+            Bảng dưới đây là bản rút gọn; chi tiết đầy đủ nằm trong form thêm/sửa bước trên giao diện.
+          </p>
+          <div class="ug-table-wrap">
+            <table class="ug-table">
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th>Khi nào dùng</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="ug-code">navigate</span></td>
+                  <td>Mở URL; hầu hết kịch bản bắt đầu từ đây.</td>
+                </tr>
+                <tr>
+                  <td><span class="ug-code">click_selector</span>, <span class="ug-code">type</span></td>
+                  <td>Tương tác theo CSS selector ổn định.</td>
+                </tr>
+                <tr>
+                  <td><span class="ug-code">click_text</span></td>
+                  <td>Nhấp phần tử theo văn bản hiển thị khi selector khó bám.</td>
+                </tr>
+                <tr>
+                  <td><span class="ug-code">click_id</span>, <span class="ug-code">type_id</span>, …</td>
+                  <td>Biến thể theo <span class="ug-code">id</span>, <span class="ug-code">name</span> hoặc XPath.</td>
+                </tr>
+                <tr>
+                  <td><span class="ug-code">wait</span></td>
+                  <td>Chờ vài giây giữa hai bước nhạy cảm thời gian.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Nút <strong class="text-gray-200 font-medium">Đóng gói</strong> tạo một testcase kiểu “gói thao tác” bằng cách sao chép bước từ testcase đang mở. Công cụ gợi ý điền (và tuỳ chọn đọc DOM) giúp giảm việc gõ tay selector, nhưng luôn có chi phí thời gian vì phải chạy trình duyệt thật; chỉ bật khi bạn chấp nhận độ trễ đó.
+          </p>
+        </section>
+
+        <section id="ug-prereq" class="ug-section">
+          <h2>Gói chạy trước (tiền đề)</h2>
+          <p>
+            Đôi khi một testcase chỉ có nghĩa sau khi một hoặc nhiều testcase khác đã chạy xong — ví dụ cần tài khoản đăng nhập sẵn hoặc dữ liệu seed. Phần <em>Gói chạy trước</em> ở mép dưới khối chỉnh sửa testcase cho phép bạn ghép các case đó theo một thứ tự có kiểm soát.
+            Phía máy chủ có thể mở rộng thêm cây phụ thuộc; phía cổng, bạn chỉ cần biết danh sách bạn lưu chính là thứ tự ưu tiên của mình.
+          </p>
+          <p>
+            Nút “Thêm từ dự án” mở một hộp chọn testcase; testcase hiện tại và những mục đã có trong danh sách sẽ không được chọn lại để tránh vòng lặp vô lý.
+            Sau khi sắp xếp bằng nút lên xuống, hãy bấm lưu cấu hình — thao tác này không tự động gửi đi chỉ vì bạn đã chỉnh trên UI.
+          </p>
+        </section>
+
+        <section id="ug-packages" class="ug-section">
+          <h2>Gói thao tác</h2>
+          <p>
+            Gói thao tác là testcase đặc biệt dùng lại được: thường sinh ra từ thao tác đóng gói hoặc tạo tay ở backend. Sidebar <strong class="text-gray-200 font-medium">Gói thao tác</strong> liệt kê chúng theo dự án hiện tại.
+            Nhấn một hàng trong bảng sẽ mở một cửa sổ chỉnh sửa đầy đủ — cùng dạng bảng bước và menu như testcase thường, để bạn chỉnh tên mô tả và từng bước mà không cần vào explorer.
+          </p>
+        </section>
+
+        <section id="ug-run" class="ug-section">
+          <h2>Chạy thử và đọc kết quả</h2>
+          <p>
+            Nút chạy nằm sát tiêu đề testcase. Một lần chạy gửi toàn bộ kịch bản (bao gồm tiền đề nếu đã lưu) lên máy chủ executor. Kết quả hiển thị ở bảng bên phải: có tab tóm tắt, chi tiết từng bước, ảnh chụp màn hình nếu được bật trong cài đặt dự án, và log kỹ thuật.
+            Nút dừng (khi có) chỉ có tác dụng nếu backend hỗ trợ huỷ tác vụ đang chờ.
+          </p>
+          <p>
+            Ảnh và log không phải lúc nào cũng đầy đủ: tuỳ chính sách chụp màn hình (mọi bước hay chỉ khi lỗi). Khi testcase thất bại, hãy ưu tiên đọc thông báo lỗi ngắn gọn trên tab tóm tắt rồi mới lần xuống log dài.
+          </p>
+        </section>
+
+        <section id="ug-tabs" class="ug-section">
+          <h2>Tab Dữ liệu và Lịch sử</h2>
+          <p>
+            Ngoài tab chi tiết bước, mỗi testcase còn có tab <strong class="text-gray-200 font-medium">Dữ liệu</strong> cho thông tin mô tả, nhãn, trạng thái — phần nào đồng bộ từ hệ thống khác thường ở chế độ chỉ đọc.
+            Tab <strong class="text-gray-200 font-medium">Lịch sử</strong> liệt kê các phiên chạy gần đây của đúng testcase đó và cho phép mở chi tiết từng phiên để đối chiếu thời gian, người gọi và trạng thái.
+          </p>
+        </section>
+
+        <section id="ug-ai" class="ug-section">
+          <h2>Trợ lý và thiết kế kịch bản</h2>
+          <p>
+            Khối <em>Hỗ trợ kịch bản</em> là lớp gợi ý đặt cạnh chỗ soạn thảo: một kênh hội thoại để hỏi nhanh, một kênh để nhập mô tả luồng và nhận bản nháp testcase hoặc bộ bước.
+            Tuỳ chọn “chỉ thêm bước” giữ nguyên identity testcase đang chọn và nối bước mới vào cuối — phù hợp khi bạn chỉ muốn bổ sung, không muốn tạo testcase mới.
+          </p>
+          <p>
+            Tính năng AI có thể được tắt ở cấp dự án trong phần cài đặt. Khi tắt, giao diện có thể vẫn hiện chỗ nhập nhưng server sẽ từ chối hoặc trả rỗng; đó là cách một số tổ chức kiểm soát chi phí mô hình.
+          </p>
+        </section>
+
+        <section id="ug-notify" class="ug-section">
+          <h2>Thông báo trong header</h2>
+          <p>
+            Biểu tượng chuông gom các sự kiện hệ thống có thể cần chú ý (ví dụ chạy xong hoặc lỗi tác vụ). Bạn có thể đánh dấu đã đọc hàng loạt.
+            Riêng mục hướng dẫn này được mở từ cuối sidebar hoặc từ nút trợ giúp cạnh chuông; hai lối vào chỉ là thói quen giao diện, không ảnh hưởng nội dung.
+          </p>
+        </section>
+
+        <section id="ug-schedules" class="ug-section">
+          <h2>Lịch chạy tự động</h2>
+          <p>
+            Màn lịch cho phép gắn một hay nhiều testcase với một tần suất: chạy một lần vào thời điểm cố định, lặp theo ngày, theo ngày trong tuần, hoặc biểu thức cron nâng cao.
+            Phần chọn testcase trong form thường nhóm theo feature để dễ quét mắt. Mỗi lịch có trạng thái bật tắt riêng; lỗi gần nhất (nếu có) hiện trong bảng danh sách để bạn không phải mở từng lịch.
+          </p>
+        </section>
+
+        <section id="ug-groups" class="ug-section">
+          <h2>Nhóm và phân công</h2>
+          <p>
+            Nhóm trong dự án là cách gom người và phạm vi testcase: chủ dự án tạo nhóm, gán thành viên, rồi gắn feature hoặc testcase vào nhóm đó.
+            Người thuộc nhóm có thể chọn lọc explorer theo nhóm để không bị quá tải thông tin. Không gian làm việc nhóm còn có chỗ xem lịch sử chạy gắn với phạm vi đó.
+          </p>
+        </section>
+
+        <section id="ug-settings" class="ug-section">
+          <h2>Cài đặt runner và AI</h2>
+          <p>
+            Trang cài đặt dự án tách phần runner (thời gian chờ tối đa, kích thước viewport, chạy headless, số lần thử lại, URL gốc mặc định, chính sách chụp màn hình, có chụp cả bước tiền đề hay không) và phần bật tắt AI.
+            Thay đổi ở đây ảnh hưởng toàn bộ lần chạy trong dự án, nên nên thử trên dự án thử nghiệm trước khi áp cho dự án đang phục vụ production.
+          </p>
+        </section>
+
+        <section id="ug-troubleshoot" class="ug-section">
+          <h2>Khi gặp sự cố</h2>
+          <p>
+            Nếu bước fail vì không tìm thấy phần tử, hãy xem ảnh và log của bước trước đó: thường là trang chưa kịp tải hoặc selector đổi sau release. Tăng một bước <span class="ug-code">wait</span> ngắn hoặc siết lại điều kiện navigate thường hiệu quả hơn là gõ lại selector ngẫu nhiên.
+          </p>
+          <p>
+            Lỗi mạng hoặc CORS trong môi trường dev thường liên quan proxy cục bộ hoặc URL API; môi trường triển khai thật cần khớp cấu hình allowed host trên server.
+            Khi giao diện hành xử lạ (ví dụ hộp thoại không hiện), làm mới trang sau khi lưu công việc luôn là bước đầu tiên đáng làm trước khi báo lỗi.
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>

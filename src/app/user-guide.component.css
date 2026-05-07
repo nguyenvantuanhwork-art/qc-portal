@@ -1,0 +1,256 @@
+:host {
+  display: block;
+}
+
+.ug-doc {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #c8c8c8;
+}
+
+.ug-doc-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ug-doc-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #858585;
+  margin: 0 0 0.35rem;
+}
+
+.ug-doc-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f5f5f5;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .ug-doc-title {
+    font-size: 2rem;
+  }
+}
+
+.ug-doc-summary {
+  margin: 0.85rem 0 0;
+  max-width: 52rem;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #b0b0b0;
+}
+
+.ug-doc-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .ug-doc-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2.5rem;
+  }
+}
+
+.ug-doc-aside {
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  .ug-doc-aside {
+    position: sticky;
+    top: 3.75rem;
+    width: 13.5rem;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+  }
+}
+
+.ug-toc-label {
+  margin: 0 0 0.65rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #808080;
+}
+
+.ug-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ug-toc-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #b9b9b9;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.ug-toc-btn:hover {
+  color: #f0f0f0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ug-toc-btn:focus-visible {
+  outline: 2px solid rgba(0, 127, 212, 0.55);
+  outline-offset: 1px;
+}
+
+.ug-doc-main {
+  flex: 1;
+  min-width: 0;
+  max-width: 48rem;
+  padding-bottom: 2.5rem;
+}
+
+.ug-doc-scroll {
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+  min-height: 12rem;
+}
+
+@media (min-width: 1024px) {
+  .ug-doc-scroll {
+    max-height: calc(100vh - 7.5rem);
+  }
+}
+
+.ug-section {
+  scroll-margin-top: 5rem;
+  padding-top: 1.75rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ug-section:first-of-type {
+  padding-top: 0.5rem;
+}
+
+.ug-section:last-of-type {
+  border-bottom: none;
+}
+
+.ug-section h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #ececec;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.ug-section h3 {
+  margin: 1.35rem 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.ug-section p {
+  margin: 0 0 0.9rem;
+  color: #b8b8b8;
+  line-height: 1.7;
+}
+
+.ug-section p:last-child {
+  margin-bottom: 0;
+}
+
+.ug-section ul {
+  margin: 0.5rem 0 0.9rem;
+  padding-left: 1.25rem;
+  color: #b8b8b8;
+  line-height: 1.65;
+}
+
+.ug-section li {
+  margin-bottom: 0.45rem;
+}
+
+.ug-section li:last-child {
+  margin-bottom: 0;
+}
+
+.ug-callout {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 127, 212, 0.28);
+  background: rgba(0, 127, 212, 0.08);
+  font-size: 13px;
+  line-height: 1.65;
+  color: #c4d4e0;
+}
+
+.ug-table-wrap {
+  margin: 1rem 0;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.ug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.ug-table th,
+.ug-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  vertical-align: top;
+}
+
+.ug-table th {
+  font-weight: 600;
+  color: #d0d0d0;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ug-table td {
+  color: #b0b0b0;
+}
+
+.ug-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ug-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #e8c4a8;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+}

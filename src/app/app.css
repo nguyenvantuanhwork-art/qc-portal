@@ -2,3 +2,713 @@
   display: block;
   height: 100%;
 }
+
+/* Panel Cài đặt dự án — bố cục kiểu VS Code (chỉ ảnh hưởng khối .project-settings-vscode). */
+.project-settings-vscode-search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.project-settings-nav-btn {
+  border-left-width: 3px;
+  border-left-style: solid;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.project-settings-nav-btn-active {
+  border-left-color: #0078d4;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.project-settings-nav-btn-idle {
+  border-left-color: transparent;
+  color: #cccccc;
+}
+
+.project-settings-nav-btn-idle:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e0e0e0;
+}
+
+.project-settings-mobile-chip-active {
+  border-color: #0078d4;
+  color: #ffffff;
+  background: rgba(0, 120, 212, 0.2);
+}
+
+.project-settings-mobile-chip-idle {
+  border-color: #3c3c3c;
+  color: #cccccc;
+}
+
+.project-settings-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(120px, 240px);
+  gap: 1.25rem 1.5rem;
+  align-items: start;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+@media (max-width: 640px) {
+  .project-settings-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+.project-settings-row-checkbox {
+  align-items: center;
+}
+
+.project-settings-row-label {
+  min-width: 0;
+}
+
+.project-settings-row-title {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.project-settings-row-desc {
+  color: #858585;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 0.25rem;
+}
+
+.project-settings-row-control {
+  min-width: 0;
+}
+
+.project-settings-input,
+.project-settings-select {
+  width: 100%;
+  box-sizing: border-box;
+  background: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  padding: 0.35rem 0.5rem;
+  font-size: 13px;
+  outline: none;
+}
+
+.project-settings-input:focus,
+.project-settings-select:focus {
+  border-color: #007fd4;
+}
+
+.project-settings-input:read-only,
+.project-settings-select:disabled {
+  opacity: 0.55;
+}
+
+.project-settings-checkbox {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: #0078d4;
+  cursor: pointer;
+}
+
+.project-settings-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* —— VS Code–style: nhãn loại bước, nút toolbar, vùng gói chạy trước —— */
+.vscode-kind-pill {
+  display: inline-block;
+  margin: 0;
+  font-family: var(--vscode-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  color: #c8c8c8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  border: none;
+  vertical-align: middle;
+}
+
+.vscode-toolbar-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #cccccc;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    background 0.08s ease,
+    color 0.08s ease;
+}
+
+.vscode-toolbar-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.vscode-toolbar-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vscode-toolbar-ghost--success {
+  color: #89d99b;
+}
+
+.vscode-toolbar-ghost--success:hover:not(:disabled) {
+  background: rgba(137, 217, 155, 0.12);
+  color: #b5e8bf;
+}
+
+.vscode-toolbar-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.75rem;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #ffffff;
+  background: #0e639c;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.08s ease;
+}
+
+.vscode-toolbar-primary:hover:not(:disabled) {
+  background: #1177bb;
+}
+
+.vscode-toolbar-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/** Nút phụ có viền mảnh (#3c3c3c) giống secondary VS Code */
+.vscode-toolbar-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #cccccc;
+  background: transparent;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    background 0.08s ease,
+    border-color 0.08s ease,
+    color 0.08s ease;
+}
+
+.vscode-toolbar-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #505050;
+  color: #ffffff;
+}
+
+.vscode-toolbar-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/** Nút chạy test trên header — solid primary giống VS Code (Run / Continue) */
+.vscode-toolbar-primary--prominent {
+  padding: 0.45rem 0.95rem;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 3px;
+}
+
+/** Khối nội dung trang Quản lý (dự án, nhóm sidebar, …) */
+.vscode-page-inset {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.vscode-page-inset__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/** Danh sách key–value (chi tiết dự án) */
+.vscode-kv-list {
+  padding: 0;
+}
+
+.vscode-kv-item {
+  display: grid;
+  grid-template-columns: minmax(100px, 132px) 1fr;
+  gap: 0.75rem 1.25rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #2b2b2b;
+  align-items: start;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .vscode-kv-item {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+.vscode-kv-item:last-child {
+  border-bottom: none;
+}
+
+.vscode-kv-item--stack {
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+}
+
+.vscode-kv-item__key {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #858585;
+}
+
+.vscode-kv-item__val {
+  color: #e0e0e0;
+  min-width: 0;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/** Danh sách feature (mục Feature) */
+.vscode-feature-list {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.vscode-feature-list__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #2b2b2b;
+  transition: background 0.08s ease;
+}
+
+.vscode-feature-list__row:last-child {
+  border-bottom: none;
+}
+
+.vscode-feature-list__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/** Bảng dữ liệu (gói thao tác, nhóm TC, …) */
+.vscode-data-table-shell {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+table.vscode-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.vscode-data-table thead {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.vscode-data-table th {
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #bbbbbb;
+}
+
+.vscode-data-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2b2b2b;
+  vertical-align: top;
+}
+
+.vscode-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vscode-data-table tbody tr {
+  transition: background 0.08s ease;
+}
+
+.vscode-data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/** Hàng lịch sử chạy (toàn cục) */
+.vscode-history-card {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.vscode-history-card__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  align-items: flex-start;
+}
+
+.vscode-history-thumb {
+  width: 120px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  background: #1e1e1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/** Tab hàng ngang (workspace nhóm) */
+.vscode-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 0.15rem;
+  border-bottom: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.vscode-tab-row button {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 12px;
+  line-height: 1.25;
+  border: none;
+  background: transparent;
+  color: #bbbbbb;
+  cursor: pointer;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.08s ease,
+    background 0.08s ease,
+    border-color 0.08s ease;
+}
+
+.vscode-tab-row button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.vscode-tab-row button.is-on {
+  color: #ffffff;
+  border-bottom-color: #007fd4;
+}
+
+/** Ô số liệu tổng quan (nhóm) — đồng bộ với tile thống kê chạy */
+.vscode-stat-tile {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.65rem 0.75rem;
+}
+
+/** Chọn nhóm trong sidebar workspace */
+.vscode-group-picker__btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid #2b2b2b;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.08s ease;
+}
+
+.vscode-group-picker__btn:last-child {
+  border-bottom: none;
+}
+
+.vscode-group-picker__btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.vscode-group-picker__btn--active {
+  background: rgba(9, 71, 113, 0.28);
+  box-shadow: inset 3px 0 0 #007fd4;
+}
+
+/** Explorer cây testcase — chọn giống VS Code (vạch trái + nền list.active) */
+.vscode-explorer-branch .vscode-explorer-feature-label {
+  color: #cccccc;
+}
+
+.vscode-explorer-branch.vscode-explorer-row--selected .vscode-explorer-feature-label {
+  color: #ffffff;
+}
+
+.vscode-explorer-icon--muted {
+  color: #969696;
+}
+
+.vscode-explorer-branch.vscode-explorer-row--selected .vscode-explorer-icon--muted {
+  color: #c8c8c8;
+}
+
+.vscode-explorer-branch:hover:not(.vscode-explorer-row--selected) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vscode-explorer-tc-wrapper {
+  border-radius: 2px;
+  transition: background 0.08s ease;
+}
+
+.vscode-explorer-tc-wrapper:hover:not(.vscode-explorer-row--selected) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vscode-explorer-row--selected {
+  background: rgba(9, 71, 113, 0.38);
+  box-shadow: inset 3px 0 0 #007fd4;
+}
+
+.vscode-explorer-row--selected .vscode-explorer-icon {
+  color: #c8c8c8;
+}
+
+.vscode-explorer-tc-wrapper:not(.vscode-explorer-row--selected) .vscode-explorer-icon {
+  color: #969696;
+}
+
+.vscode-explorer-tc-wrapper:not(.vscode-explorer-row--selected) .vscode-explorer-tc-text {
+  color: #cccccc;
+}
+
+.vscode-explorer-tc-wrapper.vscode-explorer-row--selected .vscode-explorer-tc-text {
+  color: #ffffff;
+}
+
+/** Khối ảnh / thống kê trong panel “Tổng quan” — cùng nền + viền #2b2b2b */
+.vscode-run-panel-card {
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #2b2b2b;
+  overflow: hidden;
+}
+
+.vscode-run-panel-card__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.vscode-run-panel-card__footer {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.vscode-run-viewport {
+  background: #1e1e1e;
+}
+
+.vscode-run-progress-track {
+  height: 0.375rem;
+  width: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vscode-run-stat-tile {
+  flex: 1;
+  text-align: center;
+  padding: 0.55rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #2b2b2b;
+}
+
+.vscode-run-thumb {
+  border: 1px solid #2b2b2b;
+}
+
+.vscode-run-thumb--selected {
+  border-color: #007fd4;
+}
+
+/** Trang Thành viên — một khối list kiểu VS settings */
+.vscode-members-page {
+  border-radius: 3px;
+  border: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.vscode-members-page__head {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #2b2b2b;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.vscode-members-page__body {
+  padding: 0.85rem 1rem;
+}
+
+.vscode-members-input {
+  box-sizing: border-box;
+  width: 100%;
+  background: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  padding: 0.45rem 0.65rem;
+  font-size: 13px;
+  outline: none;
+}
+
+.vscode-members-input:focus {
+  border-color: #007fd4;
+}
+
+.vscode-members-input::placeholder {
+  color: #858585;
+}
+
+.vscode-role-pill {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #bbbbbb;
+}
+
+/** Vùng “gói chạy trước”: chỉ phân tách mảnh như VS Code, không viền màu */
+.vscode-inset-panel {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #2b2b2b;
+  background: transparent;
+}
+
+.vscode-inset-panel__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #bbbbbb;
+  margin: 0 0 0.5rem;
+}
+
+/** Dòng trong list phụ — nền rất nhạt, không viền hộp */
+.vscode-soft-row {
+  border: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.08s ease;
+}
+
+.vscode-hint-box {
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #2b2b2b;
+}
+
+/** Stripe gợi ý điền — trung tính, không tô xanh cờ */
+.vscode-muted-strip {
+  background: rgba(255, 255, 255, 0.035);
+  border-top: 1px solid #2b2b2b;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+/** Segment tab nhỏ (Trò chuyện / Thiết kế) giống group VS Code */
+.vscode-segment {
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: 3px;
+  border: 1px solid #3c3c3c;
+  font-size: 11px;
+}
+
+.vscode-segment button {
+  margin: 0;
+  padding: 0.3rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: #bbbbbb;
+  cursor: pointer;
+  transition:
+    background 0.08s ease,
+    color 0.08s ease;
+}
+
+.vscode-segment button + button {
+  border-left: 1px solid #3c3c3c;
+}
+
+.vscode-segment--equal {
+  display: flex;
+  width: 100%;
+}
+
+.vscode-segment--equal button {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 0.35rem 0.4rem;
+}
+
+.vscode-segment button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.vscode-segment button.is-on {
+  background: #094771;
+  color: #ffffff;
+}

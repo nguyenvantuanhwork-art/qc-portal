@@ -1,5 +1,6 @@
 import { DatePipe, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { forkJoin } from 'rxjs';
 import {
   Component,
   ElementRef,
@@ -12,6 +13,8 @@ import {
 } from '@angular/core';
 import { QC_API_BASE_URL, QC_API_DEV_PORT } from './qc-api.config';
 import { AuthService } from './auth.service';
+import { FieldHintComponent } from './field-hint.component';
+import { UserGuideComponent } from './user-guide.component';
 
 type ChatResponse = { ok: true; text: string; model?: string } | { ok: false; error: string };
 
@@ -28,9 +31,11 @@ export type ActionKind =
   | 'click_text'
   | 'click_id'
   | 'click_name'
+  | 'click_xpath'
   | 'type'
   | 'type_id'
   | 'type_name'
+  | 'type_xpath'
   | 'wait';
 
 export interface ProjectDto {
@@ -47,6 +52,8 @@ export interface ProjectSettingsDto {
     navigateTimeoutMs: number;
     waitStepMaxMs: number;
     screenshotPolicy: 'every_step' | 'on_failure';
+    /** Bật: chụp cả bước của gói/tiên quyết chạy trước. Tắt: chỉ chụp bước thuộc testcase đang chạy. */
+    screenshotPrerequisiteSteps: boolean;
     headless: boolean;
     viewportWidth: number;
     viewportHeight: number;
@@ -62,6 +69,77 @@ export interface ProjectMemberDto {
   userId: string;
   username: string;
   role: 'owner' | 'member';
+}
+
+export interface ProjectGroupDto {
+  id: string;
+  name: string;
+  description: string;
+  memberCount: string;
+  featureCount: string;
+  testCaseCount: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Chủ dự án / admin, hoặc user là thành viên nhóm — mới được lọc testcase theo nhóm trong explorer. */
+  canUseGroupTestScope: boolean;
+}
+
+export interface ProjectGroupMemberDto {
+  userId: string;
+  username: string;
+  createdAt: string;
+}
+
+export interface ProjectGroupAssignmentsDto {
+  features: Array<{ id: string; name: string; key: string | null }>;
+  testCases: Array<{ id: string; name: string; featureId: string | null; featureName: string | null }>;
+  assignedFeatureIds: string[];
+  assignedTestCaseIds: string[];
+  canManage: boolean;
+}
+
+export interface ProjectGroupStatsDto {
+  effectiveTestCases: number;
+  directTestCases: number;
+  assignedFeatures: number;
+  members: number;
+  runs7d: number;
+  passed7d: number;
+  failed7d: number;
+  passRate7d: number;
+  lastRunAt: string | null;
+  completedMarked: number;
+}
+
+export interface ProjectGroupDetailDto {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectGroupDetailTestCaseDto {
+  id: string;
+  name: string;
+  featureId: string | null;
+  featureName: string | null;
+  completed: boolean;
+  note: string;
+  progressUpdatedAt: string | null;
+  lastRun: { id: string; finishedAt: string | null; overallStatus: string | null } | null;
+}
+
+export interface ProjectGroupRunRowDto {
+  id: string;
+  testCaseId: string;
+  testCaseName: string;
+  featureName: string | null;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  overallStatus: string;
+  triggeredByUsername: string | null;
 }
 
 export interface FeatureDto {
@@ -80,6 +158,33 @@ export interface TestCaseDto {
   description: string;
   status: string;
   priority: string;
+  /** Gói thao tác (đóng gói từ testcase khác). */
+  isOperationPackage?: boolean;
+  packedAt?: string | null;
+  packedByUsername?: string | null;
+  packedFromTestCaseId?: string | null;
+}
+
+/** Một gói chạy trước (tiên quyết) gắn với testcase — có thể thuộc feature khác trong cùng dự án. */
+export interface PrerequisiteEntryDto {
+  testCaseId: string;
+  order: number;
+  name: string;
+  key: string | null;
+  featureId: string | null;
+  featureName: string | null;
+}
+
+/** Dòng danh sách Gói thao tác (sidebar). */
+export interface OperationPackageRowDto {
+  id: string;
+  featureId: string;
+  key: string | null;
+  name: string;
+  description: string;
+  packedAt: string | null;
+  packedFromTestCaseId: string | null;
+  packedByUsername: string | null;
 }
 
 /** Khớp qc-api `NotificationRow` — thông báo trong app. */
@@ -103,6 +208,7 @@ export interface TestActionDto {
   config: {
     url?: string;
     selector?: string;
+    xpath?: string;
     matchText?: string;
     id?: string;
     name?: string;
@@ -347,7 +453,7 @@ export interface TestRunDetailDto extends TestRunSummaryDto {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, FieldHintComponent, UserGuideComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -372,14 +478,17 @@ export class App implements OnInit, OnDestroy {
   protected readonly currentSidebarSection = signal<
     | 'project'
     | 'members'
+    | 'groups'
     | 'settings'
     | 'feature'
     | 'testcase'
+    | 'operationpackages'
     | 'runhistory'
     | 'runningtests'
     | 'schedules'
     | 'reports'
     | 'explorer'
+    | 'documentation'
     | 'none'
   >('testcase');
 
@@ -396,11 +505,6 @@ export class App implements OnInit, OnDestroy {
   protected readonly aiReply = signal<string | null>(null);
   protected readonly aiLoading = signal(false);
   protected readonly aiError = signal<string | null>(null);
-  /** Phân tích kết quả chạy (panel bên phải) — gọi cùng API /api/ai/chat. */
-  protected readonly runAnalysisText = signal<string | null>(null);
-  protected readonly runAnalysisLoading = signal(false);
-  protected readonly runAnalysisError = signal<string | null>(null);
-
   protected readonly aiFillLoading = signal(false);
   protected readonly aiFillError = signal<string | null>(null);
   protected readonly aiFillDraft = signal<{ fills: AiFillItemDto[]; model?: string } | null>(null);
@@ -424,6 +528,36 @@ export class App implements OnInit, OnDestroy {
   protected readonly actionsLoading = signal(false);
   protected readonly actionsError = signal<string | null>(null);
 
+  /** Gói chạy trước (cấu hình trực tiếp); khi chạy, backend mở rộng cả cây phụ thuộc. */
+  protected readonly testCasePrerequisites = signal<PrerequisiteEntryDto[]>([]);
+  protected readonly testCasePrerequisitesSaving = signal(false);
+  protected readonly testCasePrerequisitesError = signal<string | null>(null);
+  protected readonly prerequisitePickerOpen = signal(false);
+
+  protected readonly operationPackages = signal<OperationPackageRowDto[]>([]);
+  protected readonly operationPackagesLoading = signal(false);
+  protected readonly operationPackagesError = signal<string | null>(null);
+  protected readonly operationPackageModalOpen = signal(false);
+  protected readonly operationPackageSaving = signal(false);
+  protected readonly operationPackageError = signal<string | null>(null);
+  protected readonly operationPackageFormName = signal('');
+  protected readonly operationPackageFormDescription = signal('');
+  protected readonly operationPackageFormTargetFeatureId = signal('');
+
+  /** Chỉnh sửa gói thao tác (popup), không mở testcase trong explorer. */
+  protected readonly operationPackageEditModalOpen = signal(false);
+  protected readonly packageEditorTestCaseId = signal<string | null>(null);
+  protected readonly operationPackageEditFeatureId = signal<string | null>(null);
+  protected readonly operationPackageEditName = signal('');
+  protected readonly operationPackageEditDescription = signal('');
+  protected readonly operationPackageEditActions = signal<TestActionDto[]>([]);
+  protected readonly operationPackageEditLoading = signal(false);
+  protected readonly operationPackageEditSavingMeta = signal(false);
+  protected readonly operationPackageEditError = signal<string | null>(null);
+  protected readonly operationPackageEditActionsError = signal<string | null>(null);
+  /** Bảng bước nào đang mở menu «⋯» (trang chính vs modal gói). */
+  protected readonly stepMenuContext = signal<'main' | 'package'>('main');
+
   protected readonly menuOpenForId = signal<string | null>(null);
   // Context menu (render as fixed overlay to avoid any overflow clipping)
   protected readonly menuX = signal(0);
@@ -435,6 +569,7 @@ export class App implements OnInit, OnDestroy {
   protected readonly formKind = signal<ActionKind>('navigate');
   protected readonly formUrl = signal('');
   protected readonly formSelector = signal('');
+  protected readonly formXpath = signal('');
   protected readonly formMatchText = signal('');
   protected readonly formDomId = signal('');
   protected readonly formDomName = signal('');
@@ -459,9 +594,12 @@ export class App implements OnInit, OnDestroy {
   private readonly runToastTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // Test case tabs
-  protected readonly testCaseTab = signal<'steps' | 'data' | 'settings' | 'history'>('steps');
+  protected readonly testCaseTab = signal<'steps' | 'data' | 'history'>('steps');
 
   // Run history (per test case)
+  /** Theo dõi request lịch sử chạy để tránh race khi đổi testcase nhanh hoặc gọi chồng. */
+  private runHistoryFetchGen = 0;
+
   protected readonly runHistoryLoading = signal(false);
   protected readonly runHistoryError = signal<string | null>(null);
   protected readonly runHistory = signal<TestRunSummaryDto[]>([]);
@@ -479,6 +617,62 @@ export class App implements OnInit, OnDestroy {
   protected readonly activeRunsLoading = signal(false);
   protected readonly activeRunsError = signal<string | null>(null);
   private activeRunsPollTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Project groups (owner-managed)
+  protected readonly groups = signal<ProjectGroupDto[]>([]);
+  protected readonly groupsLoading = signal(false);
+  protected readonly groupsError = signal<string | null>(null);
+  protected readonly groupsCanManage = signal(false);
+  protected readonly selectedGroupId = signal<string | null>(null);
+
+  protected readonly groupEditorName = signal('');
+  protected readonly groupEditorDescription = signal('');
+  protected readonly groupEditorBusy = signal(false);
+
+  protected readonly groupMembers = signal<ProjectGroupMemberDto[]>([]);
+  protected readonly groupMembersLoading = signal(false);
+  protected readonly groupMembersError = signal<string | null>(null);
+  protected readonly groupMemberSelectedUserId = signal('');
+  protected readonly groupMemberBusy = signal(false);
+
+
+  protected readonly groupAssignments = signal<ProjectGroupAssignmentsDto | null>(null);
+  protected readonly groupAssignmentsLoading = signal(false);
+  protected readonly groupAssignmentsError = signal<string | null>(null);
+  protected readonly groupAssignedFeatureIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly groupAssignedTestCaseIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly groupAssignmentsBusy = signal(false);
+
+  protected readonly groupWorkspaceTab = signal<'overview' | 'cases' | 'history' | 'settings'>('overview');
+  protected readonly groupDetail = signal<{
+    group: ProjectGroupDetailDto;
+    overview: ProjectGroupStatsDto | null;
+    testCases: ProjectGroupDetailTestCaseDto[];
+    canManage: boolean;
+  } | null>(null);
+  protected readonly groupDetailLoading = signal(false);
+  protected readonly groupDetailError = signal<string | null>(null);
+  protected readonly groupRuns = signal<ProjectGroupRunRowDto[]>([]);
+  protected readonly groupRunsLoading = signal(false);
+  protected readonly groupRunsError = signal<string | null>(null);
+  protected readonly groupRunsHasMore = signal(false);
+  protected readonly groupRunsLoadMoreBusy = signal(false);
+  private groupRunsOffset = 0;
+  private readonly groupRunsPageSize = 40;
+  protected readonly groupProgressPatchBusy = signal<ReadonlySet<string>>(new Set());
+
+  protected readonly createGroupModalOpen = signal(false);
+  protected readonly createGroupModalName = signal('');
+  protected readonly createGroupModalDescription = signal('');
+  protected readonly createGroupModalBusy = signal(false);
+  protected readonly createGroupModalError = signal<string | null>(null);
+
+  /** Explorer trong tab testcase: rỗng = tất cả TC; uuid = chỉ TC được gán cho nhóm. */
+  protected readonly explorerGroupFilterId = signal('');
+  protected readonly explorerGroupFilterTcIds = signal<ReadonlySet<string> | null>(null);
+  protected readonly explorerGroupFilterFeatureIds = signal<ReadonlySet<string> | null>(null);
+  protected readonly explorerGroupFilterLoading = signal(false);
+  protected readonly explorerGroupFilterError = signal<string | null>(null);
 
   protected readonly reportsLoading = signal(false);
   protected readonly reportsError = signal<string | null>(null);
@@ -566,6 +760,9 @@ export class App implements OnInit, OnDestroy {
   protected readonly projectSettingsError = signal<string | null>(null);
   protected readonly projectSettingsSaving = signal(false);
   protected readonly projectSettingsCanManage = signal(false);
+  /** Điều hướng panel cài đặt (kiểu VS Code). */
+  protected readonly projectSettingsNav = signal<'runner' | 'ai'>('runner');
+  protected readonly projectSettingsSearchQuery = signal('');
 
   protected readonly notificationPanelOpen = signal(false);
   protected readonly notifications = signal<NotificationItemDto[]>([]);
@@ -573,8 +770,33 @@ export class App implements OnInit, OnDestroy {
   protected readonly notificationsLoading = signal(false);
   protected readonly notificationsError = signal<string | null>(null);
 
+  /** Cấu hình công khai (đăng ký/banner) từ GET /api/system/public-config — dùng màn đăng nhập. */
+  protected readonly publicSystemConfig = signal<{
+    registrationOpen: boolean;
+    maintenanceBanner: string;
+  } | null>(null);
+
+  /** Modal cài đặt tài khoản / hệ thống (header, kiểu VS Code). */
+  protected readonly appSettingsModalOpen = signal(false);
+  protected readonly globalSettingsNav = signal<'account' | 'system'>('account');
+  protected readonly globalSettingsSearchQuery = signal('');
+  protected readonly globalSystemDraft = signal<{
+    registrationOpen: boolean;
+    maintenanceBanner: string;
+  } | null>(null);
+  protected readonly globalSystemLoading = signal(false);
+  protected readonly globalSystemSaving = signal(false);
+  protected readonly globalSystemError = signal<string | null>(null);
+  protected readonly passwordCurrent = signal('');
+  protected readonly passwordNew = signal('');
+  protected readonly passwordConfirm = signal('');
+  protected readonly passwordBusy = signal(false);
+  protected readonly passwordError = signal<string | null>(null);
+  protected readonly passwordOk = signal<string | null>(null);
+
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
+    this.loadPublicSystemConfig();
     this.auth.refreshMe(() => {
       if (this.auth.user()) this.afterLoginBootstrap();
     });
@@ -591,7 +813,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   protected setAuthTab(tab: 'login' | 'register'): void {
-    this.authTab.set(tab);
+    let t = tab;
+    if (t === 'register' && !this.publicRegistrationOpen()) t = 'login';
+    this.authTab.set(t);
     this.authFormError.set(null);
   }
 
@@ -919,11 +1143,84 @@ export class App implements OnInit, OnDestroy {
     this.patchProjectSettingsRunner('headless', (ev.target as HTMLInputElement).checked);
   }
 
+  protected setRunnerScreenshotPrerequisiteSteps(ev: Event): void {
+    this.patchProjectSettingsRunner(
+      'screenshotPrerequisiteSteps',
+      (ev.target as HTMLInputElement).checked,
+    );
+  }
+
   protected setAiEnabled(ev: Event): void {
     const d = this.projectSettingsDraft();
     if (!d) return;
     const enabled = (ev.target as HTMLInputElement).checked;
     this.projectSettingsDraft.set({ ...d, ai: { ...d.ai, enabled } });
+  }
+
+  protected setProjectSettingsNav(id: 'runner' | 'ai'): void {
+    this.projectSettingsNav.set(id);
+  }
+
+  protected onProjectSettingsSearchInput(ev: Event): void {
+    this.projectSettingsSearchQuery.set((ev.target as HTMLInputElement).value);
+  }
+
+  protected clearProjectSettingsSearch(): void {
+    this.projectSettingsSearchQuery.set('');
+  }
+
+  private projectSettingsNormalizeSearch(s: string): string {
+    return s
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase();
+  }
+
+  /** Một dòng cài đặt hiển thị khi không tìm kiếm hoặc khi nhãn khớp truy vấn. */
+  protected projectSettingsRowVisible(label: string): boolean {
+    const raw = this.projectSettingsSearchQuery().trim();
+    if (!raw) return true;
+    const q = this.projectSettingsNormalizeSearch(raw);
+    return this.projectSettingsNormalizeSearch(label).includes(q);
+  }
+
+  protected projectSettingsIsSearching(): boolean {
+    return this.projectSettingsSearchQuery().trim().length > 0;
+  }
+
+  protected projectSettingsShowRunnerSection(): boolean {
+    if (!this.projectSettingsIsSearching()) {
+      return this.projectSettingsNav() === 'runner';
+    }
+    const sectionTitle = 'Chạy test tự động';
+    if (this.projectSettingsRowVisible(sectionTitle)) return true;
+    const labels = [
+      'Timeout bước (click/type/chờ selector), ms',
+      'Timeout navigate, ms',
+      'Tối đa «Chờ» (wait), ms',
+      'Số lần chạy lại khi fail (retry)',
+      'Chụp màn hình',
+      'Chụp ảnh các bước gói chạy trước',
+      'Chạy trình duyệt headless',
+      'Viewport rộng',
+      'Viewport cao',
+      'Base URL mặc định (URL navigate tương đối)',
+    ];
+    return labels.some((l) => this.projectSettingsRowVisible(l));
+  }
+
+  protected projectSettingsShowAiSection(): boolean {
+    if (!this.projectSettingsIsSearching()) {
+      return this.projectSettingsNav() === 'ai';
+    }
+    const sectionTitle = 'Gợi ý giá trị trường';
+    if (this.projectSettingsRowVisible(sectionTitle)) return true;
+    return this.projectSettingsRowVisible('Cho phép xem trước gợi ý khi điền bước «Gõ text»');
+  }
+
+  protected projectSettingsSearchHasNoMatches(): boolean {
+    if (!this.projectSettingsIsSearching()) return false;
+    return !this.projectSettingsShowRunnerSection() && !this.projectSettingsShowAiSection();
   }
 
   private bootstrapNav(): void {
@@ -1024,6 +1321,261 @@ export class App implements OnInit, OnDestroy {
 
   protected closeNotificationsPanel(): void {
     this.notificationPanelOpen.set(false);
+  }
+
+  /** Để hiện tab Đăng ký — mặc định mở nếu chưa tải public-config. */
+  protected publicRegistrationOpen(): boolean {
+    const c = this.publicSystemConfig();
+    if (!c) return true;
+    return c.registrationOpen;
+  }
+
+  protected loadPublicSystemConfig(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.http
+      .get<{
+        ok: boolean;
+        registrationOpen?: boolean;
+        maintenanceBanner?: string;
+      }>(`${QC_API_BASE_URL}/api/system/public-config`)
+      .subscribe({
+        next: (b) => {
+          if (b.ok && typeof b.registrationOpen === 'boolean') {
+            this.publicSystemConfig.set({
+              registrationOpen: b.registrationOpen,
+              maintenanceBanner: typeof b.maintenanceBanner === 'string' ? b.maintenanceBanner : '',
+            });
+          }
+        },
+        error: () => {
+          /* bỏ qua — không chặn đăng ký */
+        },
+      });
+  }
+
+  /** Mở modal cài đặt tài khoản và hệ thống (ghi đè mật khẩu, cấu hình public). */
+  protected openAppSettingsModal(): void {
+    if (!this.auth.user()) return;
+    this.closeNotificationsPanel();
+    this.projectPickerOpen.set(false);
+    this.featurePickerOpen.set(false);
+    this.globalSettingsNav.set('account');
+    this.globalSettingsSearchQuery.set('');
+    this.globalSystemError.set(null);
+    this.passwordError.set(null);
+    this.passwordOk.set(null);
+    this.passwordCurrent.set('');
+    this.passwordNew.set('');
+    this.passwordConfirm.set('');
+    this.passwordBusy.set(false);
+
+    this.globalSystemLoading.set(true);
+    this.globalSystemDraft.set(null);
+    this.http
+      .get<{
+        ok: boolean;
+        settings?: { registrationOpen: boolean; maintenanceBanner: string };
+        error?: string;
+      }>(`${QC_API_BASE_URL}/api/system/settings`)
+      .subscribe({
+        next: (body) => {
+          this.globalSystemLoading.set(false);
+          if (!body.ok || !body.settings) {
+            this.globalSystemError.set(body.error ?? 'Không tải được cài đặt hệ thống.');
+            return;
+          }
+          this.globalSystemDraft.set({
+            registrationOpen: body.settings.registrationOpen !== false,
+            maintenanceBanner:
+              typeof body.settings.maintenanceBanner === 'string' ? body.settings.maintenanceBanner : '',
+          });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.globalSystemLoading.set(false);
+          this.globalSystemError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message || 'Không đọc được cài đặt.',
+          );
+        },
+      });
+
+    this.appSettingsModalOpen.set(true);
+  }
+
+  protected closeAppSettingsModal(): void {
+    this.appSettingsModalOpen.set(false);
+  }
+
+  protected setGlobalSettingsNav(nav: 'account' | 'system'): void {
+    this.globalSettingsNav.set(nav);
+  }
+
+  protected onGlobalSettingsSearchInput(ev: Event): void {
+    this.globalSettingsSearchQuery.set((ev.target as HTMLInputElement).value);
+  }
+
+  protected clearGlobalSettingsSearch(): void {
+    this.globalSettingsSearchQuery.set('');
+  }
+
+  private globalSettingsNormalizeSearch(s: string): string {
+    return s
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase();
+  }
+
+  protected globalSettingsRowVisible(label: string): boolean {
+    const raw = this.globalSettingsSearchQuery().trim();
+    if (!raw) return true;
+    const q = this.globalSettingsNormalizeSearch(raw);
+    return this.globalSettingsNormalizeSearch(label).includes(q);
+  }
+
+  protected globalSettingsIsSearching(): boolean {
+    return this.globalSettingsSearchQuery().trim().length > 0;
+  }
+
+  protected globalSettingsShowAccountPanel(): boolean {
+    if (!this.globalSettingsIsSearching()) return this.globalSettingsNav() === 'account';
+    const titles = ['Tài khoản của bạn', 'Username', 'Vai trò', 'Đổi mật khẩu'];
+    const fields = ['Mật khẩu hiện tại', 'Mật khẩu mới', 'Xác nhận mật khẩu'];
+    return titles.some((t) => this.globalSettingsRowVisible(t)) || fields.some((f) => this.globalSettingsRowVisible(f));
+  }
+
+  protected globalSettingsShowSystemPanel(): boolean {
+    if (!this.globalSettingsIsSearching()) return this.globalSettingsNav() === 'system';
+    const labels = ['Hệ thống', 'Cho phép đăng ký tài khoản mới', 'Thông báo trên trang đăng nhập'];
+    return labels.some((l) => this.globalSettingsRowVisible(l));
+  }
+
+  protected globalSettingsSearchHasNoMatches(): boolean {
+    if (!this.globalSettingsIsSearching()) return false;
+    return !this.globalSettingsShowAccountPanel() && !this.globalSettingsShowSystemPanel();
+  }
+
+  protected toggleGlobalRegistrationOpen(ev: Event): void {
+    const d = this.globalSystemDraft();
+    if (!d) return;
+    this.globalSystemDraft.set({
+      ...d,
+      registrationOpen: (ev.target as HTMLInputElement).checked,
+    });
+  }
+
+  protected onGlobalMaintenanceBannerInput(ev: Event): void {
+    const d = this.globalSystemDraft();
+    if (!d) return;
+    this.globalSystemDraft.set({
+      ...d,
+      maintenanceBanner: (ev.target as HTMLTextAreaElement).value,
+    });
+  }
+
+  protected saveGlobalSystemSettings(): void {
+    const draft = this.globalSystemDraft();
+    const user = this.auth.user();
+    if (!draft || !user || user.role !== 'admin' || !isPlatformBrowser(this.platformId)) return;
+    this.globalSystemSaving.set(true);
+    this.globalSystemError.set(null);
+    this.http
+      .put<{
+        ok: boolean;
+        settings?: { registrationOpen: boolean; maintenanceBanner: string };
+        error?: string;
+      }>(`${QC_API_BASE_URL}/api/system/settings`, {
+        registrationOpen: draft.registrationOpen,
+        maintenanceBanner: draft.maintenanceBanner,
+      })
+      .subscribe({
+        next: (body) => {
+          this.globalSystemSaving.set(false);
+          if (!body.ok || !body.settings) {
+            this.globalSystemError.set(body.error ?? 'Không lưu được.');
+            return;
+          }
+          this.globalSystemDraft.set({
+            registrationOpen: body.settings.registrationOpen !== false,
+            maintenanceBanner:
+              typeof body.settings.maintenanceBanner === 'string' ? body.settings.maintenanceBanner : '',
+          });
+          this.loadPublicSystemConfig();
+        },
+        error: (e: HttpErrorResponse) => {
+          this.globalSystemSaving.set(false);
+          this.globalSystemError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message || 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  protected onPasswordCurrentInput(ev: Event): void {
+    this.passwordCurrent.set((ev.target as HTMLInputElement).value);
+  }
+
+  protected onPasswordNewInput(ev: Event): void {
+    this.passwordNew.set((ev.target as HTMLInputElement).value);
+  }
+
+  protected onPasswordConfirmInput(ev: Event): void {
+    this.passwordConfirm.set((ev.target as HTMLInputElement).value);
+  }
+
+  protected submitAccountPasswordChange(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const cur = this.passwordCurrent();
+    const neu = this.passwordNew();
+    const conf = this.passwordConfirm();
+    this.passwordOk.set(null);
+    this.passwordError.set(null);
+
+    if (!cur || !neu) {
+      this.passwordError.set('Nhập mật khẩu hiện tại và mới.');
+      return;
+    }
+    if (neu !== conf) {
+      this.passwordError.set('Xác nhận mật khẩu không khớp.');
+      return;
+    }
+    if (neu.length < 4) {
+      this.passwordError.set('Mật khẩu mới tối thiểu 4 ký tự.');
+      return;
+    }
+
+    this.passwordBusy.set(true);
+    this.http
+      .put<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/auth/password`, {
+        currentPassword: cur,
+        newPassword: neu,
+      })
+      .subscribe({
+        next: (body) => {
+          this.passwordBusy.set(false);
+          if (!body.ok) {
+            this.passwordError.set(body.error ?? 'Đổi mật khẩu thất bại.');
+            return;
+          }
+          this.passwordCurrent.set('');
+          this.passwordNew.set('');
+          this.passwordConfirm.set('');
+          this.passwordOk.set('Đã cập nhật mật khẩu.');
+        },
+        error: (e: HttpErrorResponse) => {
+          this.passwordBusy.set(false);
+          this.passwordError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message || 'Lỗi mạng.',
+          );
+        },
+      });
+  }
+
+  /** Màn hình hướng dẫn (sidebar Documentation / nút header cạnh thông báo). */
+  protected openDocumentation(): void {
+    this.closeAppSettingsModal();
+    this.closeNotificationsPanel();
+    this.projectPickerOpen.set(false);
+    this.featurePickerOpen.set(false);
+    this.openSidebarSection('documentation');
   }
 
   protected markNotificationReadItem(id: string): void {
@@ -1181,6 +1733,18 @@ export class App implements OnInit, OnDestroy {
     this.syncRunPanelToSelectedTestCase();
     this.loadProjectMembers(p.id);
     this.loadFeatures(p.id);
+    this.selectedGroupId.set(null);
+    this.groupDetail.set(null);
+    this.groupRuns.set([]);
+    this.groupMembers.set([]);
+    this.groupAssignments.set(null);
+    this.groupWorkspaceTab.set('overview');
+    this.explorerGroupFilterId.set('');
+    this.explorerGroupFilterTcIds.set(null);
+    this.explorerGroupFilterFeatureIds.set(null);
+    this.explorerGroupFilterLoading.set(false);
+    this.explorerGroupFilterError.set(null);
+    void this.loadProjectGroups(p.id, { preserveSelection: true });
   }
 
   protected selectFeature(f: FeatureDto): void {
@@ -1214,8 +1778,14 @@ export class App implements OnInit, OnDestroy {
     this.menuOpenForId.set(null);
     if (prevTc !== tc.id) {
       this.syncRunPanelToSelectedTestCase();
+      this.runHistory.set([]);
+      this.runHistoryError.set(null);
     }
     this.loadActions();
+    this.loadTestCasePrerequisitesDetail();
+    if (prevTc !== tc.id) {
+      this.loadLatestRunResultFromDb();
+    }
     if (this.testCaseTab() === 'history') {
       this.loadRunHistory();
     }
@@ -1243,11 +1813,65 @@ export class App implements OnInit, OnDestroy {
     this.menuOpenForId.set(null);
     if (prevTc !== tc.id) {
       this.syncRunPanelToSelectedTestCase();
+      this.runHistory.set([]);
+      this.runHistoryError.set(null);
     }
     this.loadActions();
+    this.loadTestCasePrerequisitesDetail();
+    if (prevTc !== tc.id) {
+      this.loadLatestRunResultFromDb();
+    }
     if (this.testCaseTab() === 'history') {
       this.loadRunHistory();
     }
+  }
+
+  /** Lấy record chạy mới nhất từ DB và hiển thị ở panel phải. */
+  protected loadLatestRunResultFromDb(): void {
+    const testCaseId = this.selectedTestCaseId();
+    if (!testCaseId) {
+      this.runResult.set(null);
+      return;
+    }
+    // Nếu đang có lần chạy in-flight cho testcase đang mở, ưu tiên trạng thái "RUNNING" hiện tại.
+    if (this.runPanelBusyForSelectedTestCase()) return;
+
+    this.http
+      .get<{ ok: boolean; runs?: TestRunSummaryDto[]; error?: string }>(
+        `${QC_API_BASE_URL}/api/test-cases/${testCaseId}/runs?limit=1`,
+      )
+      .subscribe({
+        next: (body) => {
+          if (!body.ok || !Array.isArray(body.runs)) {
+            // Không phá UI nếu endpoint lỗi; giữ nguyên runResult hiện tại.
+            return;
+          }
+          const latest = body.runs[0];
+          if (!latest?.id) {
+            this.runResult.set(null);
+            this.runError.set(null);
+            return;
+          }
+          this.http
+            .get<{ ok: boolean; run?: TestRunDetailDto; error?: string }>(
+              `${QC_API_BASE_URL}/api/test-runs/${latest.id}`,
+            )
+            .subscribe({
+              next: (r2) => {
+                if (!r2.ok || !r2.run?.result) return;
+                // Tránh race: user đã chuyển testcase khác trong lúc request.
+                if (this.selectedTestCaseId() !== testCaseId) return;
+                this.runResult.set(r2.run.result);
+                this.runError.set(null);
+                const steps = r2.run.result.steps ?? [];
+                const failedIdx = steps.findIndex((s) => s.status === 'failed');
+                const lastIdx = steps.length - 1;
+                this.selectedShotIndex.set(failedIdx >= 0 ? failedIdx : lastIdx >= 0 ? lastIdx : 0);
+                this.runPanelTab.set('overview');
+              },
+            });
+        },
+      });
   }
 
   protected selectExplorerFeature(featureId: string): void {
@@ -1260,16 +1884,22 @@ export class App implements OnInit, OnDestroy {
     section:
       | 'project'
       | 'members'
+      | 'groups'
       | 'settings'
       | 'feature'
       | 'testcase'
+      | 'operationpackages'
       | 'runhistory'
       | 'runningtests'
       | 'schedules'
-      | 'reports',
+      | 'reports'
+      | 'documentation',
   ): void {
     const prev = this.currentSidebarSection();
     this.currentSidebarSection.set(section);
+    if (section === 'documentation') {
+      this.closeNotificationsPanel();
+    }
     if (section === 'runningtests') {
       this.loadActiveRuns();
       this.startActiveRunsPolling();
@@ -1283,7 +1913,17 @@ export class App implements OnInit, OnDestroy {
       const pid = this.selectedProjectId();
       if (pid) this.loadProjectMembers(pid);
     }
+    if (section === 'groups') {
+      const pid = this.selectedProjectId();
+      if (pid) {
+        this.loadProjectGroups(pid, { preserveSelection: true });
+        // UX: để chọn member từ danh sách thành viên dự án
+        this.loadProjectMembers(pid);
+      }
+    }
     if (section === 'settings') {
+      this.projectSettingsNav.set('runner');
+      this.projectSettingsSearchQuery.set('');
       this.loadProjectSettings();
     }
     if (section === 'runhistory') {
@@ -1295,6 +1935,666 @@ export class App implements OnInit, OnDestroy {
     if (section === 'reports') {
       this.loadReports();
     }
+    if (section === 'operationpackages') {
+      const pid = this.selectedProjectId();
+      if (pid) this.loadOperationPackages(pid);
+    }
+    if (section === 'testcase') {
+      const pid = this.selectedProjectId();
+      if (pid) this.loadProjectGroups(pid, { preserveSelection: true });
+    }
+  }
+
+  /** Nhóm mà user hiện tại được lọc testcase trong explorer (chủ dự án hoặc thành viên nhóm). */
+  protected explorerSelectableGroupsForTestScope(): ProjectGroupDto[] {
+    return this.groups().filter((g) => g.canUseGroupTestScope === true);
+  }
+
+  private clearExplorerGroupScopeFilter(): void {
+    this.explorerGroupFilterId.set('');
+    this.explorerGroupFilterTcIds.set(null);
+    this.explorerGroupFilterFeatureIds.set(null);
+    this.explorerGroupFilterLoading.set(false);
+    this.explorerGroupFilterError.set(null);
+  }
+
+  /** Gỡ bộ lọc nhóm trong explorer khi không còn được phép scope tới nhóm đang chọn. */
+  private syncExplorerGroupFilterWithPermissions(groups: ProjectGroupDto[]): void {
+    const cur = this.explorerGroupFilterId().trim();
+    if (!cur) return;
+    const row = groups.find((g) => g.id === cur);
+    if (!row || row.canUseGroupTestScope !== true) {
+      this.clearExplorerGroupScopeFilter();
+    }
+  }
+
+  // ---------- Groups ----------
+  protected loadProjectGroups(projectId: string, opts?: { preserveSelection?: boolean }): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const preserve = opts?.preserveSelection === true;
+    const prevSel = this.selectedGroupId();
+    this.groupsLoading.set(true);
+    this.groupsError.set(null);
+    this.groups.set([]);
+    this.groupsCanManage.set(false);
+    if (!preserve) {
+      this.selectedGroupId.set(null);
+      this.groupDetail.set(null);
+      this.groupRuns.set([]);
+      this.groupMembers.set([]);
+      this.groupAssignments.set(null);
+      this.groupWorkspaceTab.set('overview');
+    }
+    this.http
+      .get<
+        | { ok: true; groups: ProjectGroupDto[]; canManage: boolean }
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups`)
+      .subscribe({
+        next: (body) => {
+          this.groupsLoading.set(false);
+          if (!body.ok) {
+            this.groupsError.set('error' in body && typeof body.error === 'string' ? body.error : 'Không tải được nhóm');
+            return;
+          }
+          const list = body.groups ?? [];
+          this.groups.set(list);
+          this.groupsCanManage.set(Boolean(body.canManage));
+          this.syncExplorerGroupFilterWithPermissions(list);
+          if (preserve && prevSel && list.some((g) => g.id === prevSel)) {
+            const g = list.find((x) => x.id === prevSel);
+            if (g) this.selectGroup(g);
+          } else if (!preserve) {
+            this.selectedGroupId.set(null);
+          }
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupsLoading.set(false);
+          this.groupsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected selectGroup(g: ProjectGroupDto): void {
+    this.selectedGroupId.set(g.id);
+    this.groupEditorName.set(g.name ?? '');
+    this.groupEditorDescription.set(g.description ?? '');
+    this.groupWorkspaceTab.set('overview');
+    const pid = this.selectedProjectId();
+    if (!pid) return;
+    this.loadGroupDetail(pid, g.id);
+    this.loadGroupRuns(pid, g.id, false);
+    this.loadGroupMembers(pid, g.id);
+    this.loadGroupAssignments(pid, g.id);
+  }
+
+  protected setGroupWorkspaceTab(tab: 'overview' | 'cases' | 'history' | 'settings'): void {
+    this.groupWorkspaceTab.set(tab);
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (tab === 'history' && pid && gid && !this.groupRunsLoading() && this.groupRuns().length === 0) {
+      this.loadGroupRuns(pid, gid, false);
+    }
+  }
+
+  protected loadGroupDetail(projectId: string, groupId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.groupDetailLoading.set(true);
+    this.groupDetailError.set(null);
+    this.http
+      .get<
+        | {
+            ok: true;
+            group: ProjectGroupDetailDto;
+            overview: ProjectGroupStatsDto | null;
+            testCases: ProjectGroupDetailTestCaseDto[];
+            canManage: boolean;
+          }
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups/${groupId}/detail`)
+      .subscribe({
+        next: (body) => {
+          this.groupDetailLoading.set(false);
+          if (!body.ok) {
+            this.groupDetailError.set(
+              'error' in body && typeof body.error === 'string' ? body.error : 'Không tải chi tiết nhóm',
+            );
+            return;
+          }
+          const { ok: _ok, ...rest } = body;
+          this.groupDetail.set({
+            group: rest.group,
+            overview: rest.overview ?? null,
+            testCases: rest.testCases ?? [],
+            canManage: Boolean(rest.canManage),
+          });
+          this.groupEditorName.set(rest.group.name);
+          this.groupEditorDescription.set(rest.group.description);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupDetailLoading.set(false);
+          this.groupDetailError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected loadGroupRuns(projectId: string, groupId: string, append: boolean): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const page = this.groupRunsPageSize;
+    if (!append) {
+      this.groupRunsOffset = 0;
+      this.groupRuns.set([]);
+      this.groupRunsLoading.set(true);
+      this.groupRunsHasMore.set(false);
+    } else {
+      this.groupRunsLoadMoreBusy.set(true);
+    }
+    this.groupRunsError.set(null);
+    const off = this.groupRunsOffset;
+    const params = new HttpParams().set('limit', String(page)).set('offset', String(off));
+    this.http
+      .get<
+        | { ok: true; runs: ProjectGroupRunRowDto[]; limit: number; offset: number }
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups/${groupId}/runs`, { params })
+      .subscribe({
+        next: (body) => {
+          if (!append) this.groupRunsLoading.set(false);
+          else this.groupRunsLoadMoreBusy.set(false);
+          if (!body.ok) {
+            this.groupRunsError.set(
+              'error' in body && typeof body.error === 'string' ? body.error : 'Không tải lịch sử chạy nhóm',
+            );
+            return;
+          }
+          const rows = body.runs ?? [];
+          if (append) this.groupRuns.set([...this.groupRuns(), ...rows]);
+          else this.groupRuns.set(rows);
+          this.groupRunsOffset = off + rows.length;
+          this.groupRunsHasMore.set(rows.length >= page);
+        },
+        error: (e: HttpErrorResponse) => {
+          if (!append) this.groupRunsLoading.set(false);
+          else this.groupRunsLoadMoreBusy.set(false);
+          this.groupRunsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected loadMoreGroupRuns(): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupRunsLoadMoreBusy() || !this.groupRunsHasMore()) return;
+    this.loadGroupRuns(pid, gid, true);
+  }
+
+  private updateBusySet(testCaseId: string, busy: boolean): void {
+    const s = new Set(this.groupProgressPatchBusy());
+    if (busy) s.add(testCaseId);
+    else s.delete(testCaseId);
+    this.groupProgressPatchBusy.set(s);
+  }
+
+  protected patchGroupTestProgress(
+    testCaseId: string,
+    patch: { completed?: boolean; note?: string },
+  ): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid) return;
+    this.updateBusySet(testCaseId, true);
+    this.http
+      .patch<{ ok: boolean; progress?: { testCaseId: string; completed: boolean; note: string } }>(`${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}/progress`, {
+        testCaseId,
+        ...patch,
+      })
+      .subscribe({
+        next: (body) => {
+          this.updateBusySet(testCaseId, false);
+          if (!body.ok || !body.progress) return;
+          const pr = body.progress;
+          const d = this.groupDetail();
+          if (!d) return;
+          const was = d.testCases.find((t) => t.id === testCaseId);
+          const wasDone = was?.completed ?? false;
+          const nowDone = pr.completed;
+          const tcs = d.testCases.map((t) =>
+            t.id === testCaseId
+              ? {
+                  ...t,
+                  completed: pr.completed,
+                  note: pr.note,
+                  progressUpdatedAt: new Date().toISOString(),
+                }
+              : t,
+          );
+          let overview = d.overview;
+          if (overview && wasDone !== nowDone) {
+            const delta = nowDone ? 1 : -1;
+            overview = {
+              ...overview,
+              completedMarked: Math.max(0, (overview.completedMarked ?? 0) + delta),
+            };
+          }
+          this.groupDetail.set({ ...d, testCases: tcs, overview });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.updateBusySet(testCaseId, false);
+          this.groupsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected onGroupTcCompleteChange(tc: ProjectGroupDetailTestCaseDto, e: Event): void {
+    const checked = (e.target as HTMLInputElement).checked;
+    if (checked === tc.completed) return;
+    this.patchGroupTestProgress(tc.id, { completed: checked });
+  }
+
+  protected onGroupTcNoteBlur(tc: ProjectGroupDetailTestCaseDto, raw: string): void {
+    const note = raw;
+    if (note === tc.note) return;
+    this.patchGroupTestProgress(tc.id, { note });
+  }
+
+  protected focusGroupAssignedTestCase(tc: ProjectGroupDetailTestCaseDto): void {
+    const pid = this.selectedProjectId();
+    const fid = tc.featureId;
+    if (!pid || !fid) return;
+    this.currentSidebarSection.set('testcase');
+    this.selectedFeatureId.set(fid);
+    this.loadTestCases(pid, fid, { selectTestCaseId: tc.id });
+  }
+
+  protected clearGroupSelection(): void {
+    this.selectedGroupId.set(null);
+    this.groupDetail.set(null);
+    this.groupRuns.set([]);
+    this.groupRunsOffset = 0;
+    this.groupRunsHasMore.set(false);
+    this.groupMembers.set([]);
+    this.groupAssignments.set(null);
+    this.groupWorkspaceTab.set('overview');
+  }
+
+  protected refreshProjectGroups(): void {
+    const pid = this.selectedProjectId();
+    if (!pid) return;
+    this.loadProjectGroups(pid, { preserveSelection: true });
+  }
+
+  protected loadGroupMembers(projectId: string, groupId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.groupMembersLoading.set(true);
+    this.groupMembersError.set(null);
+    this.groupMembers.set([]);
+    this.http
+      .get<
+        | { ok: true; members: ProjectGroupMemberDto[]; canManage: boolean }
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups/${groupId}/members`)
+      .subscribe({
+        next: (body) => {
+          this.groupMembersLoading.set(false);
+          if (!body.ok) {
+            this.groupMembersError.set(
+              'error' in body && typeof body.error === 'string' ? body.error : 'Không tải được thành viên nhóm',
+            );
+            return;
+          }
+          this.groupMembers.set(body.members ?? []);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupMembersLoading.set(false);
+          this.groupMembersError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected loadGroupAssignments(projectId: string, groupId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.groupAssignmentsLoading.set(true);
+    this.groupAssignmentsError.set(null);
+    this.groupAssignments.set(null);
+    this.groupAssignedFeatureIds.set(new Set());
+    this.groupAssignedTestCaseIds.set(new Set());
+    this.http
+      .get<
+        | ({ ok: true } & ProjectGroupAssignmentsDto)
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups/${groupId}/assignments`)
+      .subscribe({
+        next: (body) => {
+          this.groupAssignmentsLoading.set(false);
+          if (!body.ok) {
+            this.groupAssignmentsError.set(
+              'error' in body && typeof body.error === 'string' ? body.error : 'Không tải được phân công',
+            );
+            return;
+          }
+          const { ok: _ok, ...dto } = body;
+          this.groupAssignments.set(dto);
+          this.groupAssignedFeatureIds.set(new Set(dto.assignedFeatureIds ?? []));
+          this.groupAssignedTestCaseIds.set(new Set(dto.assignedTestCaseIds ?? []));
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupAssignmentsLoading.set(false);
+          this.groupAssignmentsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected openCreateGroupModal(): void {
+    if (!this.groupsCanManage()) return;
+    this.createGroupModalError.set(null);
+    this.createGroupModalName.set('');
+    this.createGroupModalDescription.set('');
+    this.createGroupModalOpen.set(true);
+  }
+
+  protected closeCreateGroupModal(): void {
+    this.createGroupModalOpen.set(false);
+    this.createGroupModalError.set(null);
+  }
+
+  protected onCreateGroupModalNameInput(e: Event): void {
+    this.createGroupModalName.set((e.target as HTMLInputElement).value);
+  }
+
+  protected onCreateGroupModalDescriptionInput(e: Event): void {
+    this.createGroupModalDescription.set((e.target as HTMLTextAreaElement).value);
+  }
+
+  protected submitCreateGroupModal(): void {
+    const pid = this.selectedProjectId();
+    if (!pid || this.createGroupModalBusy()) return;
+    const name = this.createGroupModalName().trim();
+    const description = this.createGroupModalDescription().trim();
+    if (!name) {
+      this.createGroupModalError.set('Tên nhóm là bắt buộc.');
+      return;
+    }
+    this.createGroupModalBusy.set(true);
+    this.createGroupModalError.set(null);
+    this.http
+      .post<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/projects/${pid}/groups`, {
+        name,
+        description,
+      })
+      .subscribe({
+        next: (body) => {
+          this.createGroupModalBusy.set(false);
+          if (!body.ok) {
+            this.createGroupModalError.set(body.error ?? 'Tạo nhóm thất bại');
+            return;
+          }
+          this.closeCreateGroupModal();
+          this.loadProjectGroups(pid, { preserveSelection: true });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.createGroupModalBusy.set(false);
+          this.createGroupModalError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  /** Select trong explorer (tab testcase): rỗng = tất cả; hoặc id nhóm. */
+  protected onExplorerGroupFilterSelectChange(e: Event): void {
+    const v = (e.target as HTMLSelectElement).value;
+    const pid = this.selectedProjectId();
+    if (!v.trim()) {
+      this.explorerGroupFilterId.set(v);
+      this.explorerGroupFilterTcIds.set(null);
+      this.explorerGroupFilterFeatureIds.set(null);
+      this.explorerGroupFilterLoading.set(false);
+      this.explorerGroupFilterError.set(null);
+      return;
+    }
+    const grp = this.groups().find((x) => x.id === v);
+    if (!grp || grp.canUseGroupTestScope !== true) {
+      this.clearExplorerGroupScopeFilter();
+      this.explorerGroupFilterError.set('Chỉ chủ dự án hoặc thành viên trong nhóm mới được lọc testcase theo nhóm đó.');
+      (e.target as HTMLSelectElement).value = '';
+      return;
+    }
+    this.explorerGroupFilterError.set(null);
+    this.explorerGroupFilterId.set(v);
+    if (!pid) return;
+    this.applyExplorerGroupFilterFromDetail(pid, v);
+  }
+
+  private applyExplorerGroupFilterFromDetail(projectId: string, groupId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.explorerGroupFilterLoading.set(true);
+    this.explorerGroupFilterError.set(null);
+    this.http
+      .get<
+        | {
+            ok: true;
+            testCases?: ProjectGroupDetailTestCaseDto[];
+          }
+        | { ok: false; error?: string }
+      >(`${QC_API_BASE_URL}/api/projects/${projectId}/groups/${groupId}/detail`)
+      .subscribe({
+        next: (body) => {
+          this.explorerGroupFilterLoading.set(false);
+          if (!body.ok) {
+            this.explorerGroupFilterId.set('');
+            this.explorerGroupFilterTcIds.set(null);
+            this.explorerGroupFilterFeatureIds.set(null);
+            this.explorerGroupFilterError.set(
+              'error' in body && typeof body.error === 'string' ? body.error : 'Không tải phạm vi nhóm',
+            );
+            return;
+          }
+          const tcs = body.testCases ?? [];
+          const tcIds = new Set(tcs.map((t) => t.id));
+          const featureIds = new Set(
+            tcs.map((t) => t.featureId).filter((x): x is string => typeof x === 'string' && Boolean(x.trim())),
+          );
+          this.explorerGroupFilterTcIds.set(tcIds);
+          this.explorerGroupFilterFeatureIds.set(featureIds);
+          for (const fid of featureIds) {
+            this.ensureFeatureTestCasesLoaded(fid);
+          }
+          const expanded = new Set(this.explorerExpandedFeatureIds());
+          for (const fid of featureIds) expanded.add(fid);
+          this.explorerExpandedFeatureIds.set([...expanded]);
+          const sel = this.selectedTestCaseId();
+          if (sel && !tcIds.has(sel)) {
+            this.selectedTestCaseId.set(null);
+            this.actions.set([]);
+            this.syncRunPanelToSelectedTestCase();
+          }
+        },
+        error: (e: HttpErrorResponse) => {
+          this.explorerGroupFilterLoading.set(false);
+          this.explorerGroupFilterId.set('');
+          this.explorerGroupFilterTcIds.set(null);
+          this.explorerGroupFilterFeatureIds.set(null);
+          this.explorerGroupFilterError.set(
+            typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  protected onGroupEditorNameInput(e: Event): void {
+    this.groupEditorName.set((e.target as HTMLInputElement).value);
+  }
+
+  protected onGroupEditorDescriptionInput(e: Event): void {
+    this.groupEditorDescription.set((e.target as HTMLTextAreaElement).value);
+  }
+
+  protected saveGroupEdits(): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupEditorBusy()) return;
+    const name = this.groupEditorName().trim();
+    const description = this.groupEditorDescription().trim();
+    if (!name) {
+      this.groupsError.set('Tên nhóm là bắt buộc.');
+      return;
+    }
+    this.groupEditorBusy.set(true);
+    this.groupsError.set(null);
+    this.http
+      .put<{ ok: boolean; group?: unknown; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}`,
+        { name, description },
+      )
+      .subscribe({
+        next: (body) => {
+          this.groupEditorBusy.set(false);
+          if (!body.ok) {
+            this.groupsError.set(body.error ?? 'Cập nhật nhóm thất bại');
+            return;
+          }
+          this.loadProjectGroups(pid, { preserveSelection: true });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupEditorBusy.set(false);
+          this.groupsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected deleteSelectedGroup(): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupEditorBusy()) return;
+    if (!confirm('Xóa nhóm này? Các phân công và thành viên trong nhóm sẽ bị gỡ.')) return;
+    this.groupEditorBusy.set(true);
+    this.http.delete<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}`).subscribe({
+      next: (body) => {
+        this.groupEditorBusy.set(false);
+        if (!body.ok) {
+          this.groupsError.set(body.error ?? 'Xóa nhóm thất bại');
+          return;
+        }
+        if (this.explorerGroupFilterId() === gid) {
+          this.explorerGroupFilterId.set('');
+          this.explorerGroupFilterTcIds.set(null);
+          this.explorerGroupFilterFeatureIds.set(null);
+          this.explorerGroupFilterLoading.set(false);
+          this.explorerGroupFilterError.set(null);
+        }
+        this.clearGroupSelection();
+        this.loadProjectGroups(pid);
+      },
+      error: (e: HttpErrorResponse) => {
+        this.groupEditorBusy.set(false);
+        this.groupsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+      },
+    });
+  }
+
+  protected onGroupMemberSelectUserId(e: Event): void {
+    this.groupMemberSelectedUserId.set((e.target as HTMLSelectElement).value);
+  }
+
+  protected addGroupMember(): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupMemberBusy()) return;
+    const userId = this.groupMemberSelectedUserId().trim();
+    if (!userId) return;
+    this.groupMemberBusy.set(true);
+    this.groupMembersError.set(null);
+    this.http
+      .post<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}/members`, { userId })
+      .subscribe({
+        next: (body) => {
+          this.groupMemberBusy.set(false);
+          if (!body.ok) {
+            this.groupMembersError.set(body.error ?? 'Thêm thành viên thất bại');
+            return;
+          }
+          this.groupMemberSelectedUserId.set('');
+          this.loadGroupMembers(pid, gid);
+          this.loadGroupDetail(pid, gid);
+          this.loadProjectGroups(pid, { preserveSelection: true });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupMemberBusy.set(false);
+          this.groupMembersError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected removeGroupMember(userId: string): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupMemberBusy()) return;
+    if (!confirm('Gỡ thành viên khỏi nhóm?')) return;
+    this.groupMemberBusy.set(true);
+    this.http
+      .delete<{ ok: boolean; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}/members/${userId}`,
+      )
+      .subscribe({
+        next: (body) => {
+          this.groupMemberBusy.set(false);
+          if (!body.ok) {
+            this.groupMembersError.set(body.error ?? 'Gỡ thành viên thất bại');
+            return;
+          }
+          this.loadGroupMembers(pid, gid);
+          this.loadGroupDetail(pid, gid);
+          this.loadProjectGroups(pid, { preserveSelection: true });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupMemberBusy.set(false);
+          this.groupMembersError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected toggleAssignedFeature(id: string): void {
+    const set = new Set(this.groupAssignedFeatureIds());
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    this.groupAssignedFeatureIds.set(set);
+  }
+
+  protected toggleAssignedTestCase(id: string): void {
+    const set = new Set(this.groupAssignedTestCaseIds());
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    this.groupAssignedTestCaseIds.set(set);
+  }
+
+  protected saveGroupAssignments(): void {
+    const pid = this.selectedProjectId();
+    const gid = this.selectedGroupId();
+    if (!pid || !gid || this.groupAssignmentsBusy()) return;
+    const dto = this.groupAssignments();
+    if (!dto?.canManage) return;
+    this.groupAssignmentsBusy.set(true);
+    this.groupAssignmentsError.set(null);
+    this.http
+      .put<{ ok: boolean; error?: string }>(`${QC_API_BASE_URL}/api/projects/${pid}/groups/${gid}/assignments`, {
+        featureIds: [...this.groupAssignedFeatureIds()],
+        testCaseIds: [...this.groupAssignedTestCaseIds()],
+      })
+      .subscribe({
+        next: (body) => {
+          this.groupAssignmentsBusy.set(false);
+          if (!body.ok) {
+            this.groupAssignmentsError.set(body.error ?? 'Lưu phân công thất bại');
+            return;
+          }
+          this.loadGroupAssignments(pid, gid);
+          this.loadGroupDetail(pid, gid);
+          this.loadGroupRuns(pid, gid, false);
+          this.loadProjectGroups(pid, { preserveSelection: true });
+        },
+        error: (e: HttpErrorResponse) => {
+          this.groupAssignmentsBusy.set(false);
+          this.groupAssignmentsError.set(typeof e.error?.error === 'string' ? e.error.error : e.message ?? 'Lỗi mạng');
+        },
+      });
   }
 
   protected onReportDaysChange(e: Event): void {
@@ -2261,22 +3561,36 @@ export class App implements OnInit, OnDestroy {
 
   protected explorerFilteredFeatures(): FeatureDto[] {
     const q = this.explorerQuery().trim().toLowerCase();
-    const list = this.features();
-    if (!q) return list;
+    let list = this.features();
+    const scopeFids = this.explorerGroupFilterFeatureIds();
+    if (scopeFids !== null && scopeFids.size > 0) {
+      list = list.filter((f) => scopeFids.has(f.id));
+    } else if (scopeFids !== null && scopeFids.size === 0) {
+      list = [];
+    }
     const byFeature = this.testCasesByFeature();
+    if (!q) return list;
     return list.filter((f) => {
       const hay = `${f.key ?? ''} ${f.name} ${f.description ?? ''}`.toLowerCase();
       if (hay.includes(q)) return true;
       const tcs = byFeature[f.id] ?? [];
-      return tcs.some((tc) =>
-        `${tc.key ?? ''} ${tc.id} ${tc.name} ${tc.description ?? ''}`.toLowerCase().includes(q),
-      );
+      const allowed = this.explorerGroupFilterTcIds();
+      return tcs.some((tc) => {
+        if (tc.isOperationPackage) return false;
+        if (allowed && !allowed.has(tc.id)) return false;
+        return `${tc.key ?? ''} ${tc.id} ${tc.name} ${tc.description ?? ''}`.toLowerCase().includes(q);
+      });
     });
   }
 
   protected explorerTestCasesForFeature(featureId: string): TestCaseDto[] {
     const q = this.explorerQuery().trim().toLowerCase();
-    const list = this.testCasesByFeature()[featureId] ?? [];
+    const allowed = this.explorerGroupFilterTcIds();
+    let list = this.testCasesByFeature()[featureId] ?? [];
+    list = list.filter((tc) => !tc.isOperationPackage);
+    if (allowed !== null) {
+      list = list.filter((tc) => allowed.has(tc.id));
+    }
     if (!q) return list;
     return list.filter((tc) =>
       `${tc.key ?? ''} ${tc.id} ${tc.name} ${tc.description ?? ''}`.toLowerCase().includes(q),
@@ -2303,7 +3617,33 @@ export class App implements OnInit, OnDestroy {
     return p?.name ?? '—';
   }
 
-  /** Dự án đang chọn (theo header / breadcrumb). */
+  /** Test case đang mở (từ cache explorer / danh sách hiện tại; có fallback gói thao tác). */
+  protected selectedTestCase(): TestCaseDto | null {
+    const id = this.selectedTestCaseId();
+    if (!id) return null;
+    return (
+      this.findTestCaseById(id) ??
+      this.testCases().find((x) => x.id === id) ??
+      ((): TestCaseDto | null => {
+        const row = this.operationPackages().find((p) => p.id === id);
+        if (!row) return null;
+        return {
+          id: row.id,
+          featureId: row.featureId,
+          key: row.key,
+          name: row.name,
+          description: row.description,
+          status: 'active',
+          priority: 'medium',
+          isOperationPackage: true,
+          packedAt: row.packedAt ?? null,
+          packedByUsername: row.packedByUsername ?? null,
+          packedFromTestCaseId: row.packedFromTestCaseId ?? null,
+        };
+      })()
+    );
+  }
+
   protected selectedProject(): ProjectDto | null {
     const id = this.selectedProjectId();
     if (!id) return null;
@@ -2318,15 +3658,48 @@ export class App implements OnInit, OnDestroy {
 
   protected selectedTestCaseLabel(): string {
     const id = this.selectedTestCaseId();
-    const tc = this.testCases().find((x) => x.id === id);
-    if (!tc) return id ?? '—';
+    if (!id) return '—';
+    const tc =
+      this.findTestCaseById(id) ??
+      this.testCases().find((x) => x.id === id) ??
+      ((): TestCaseDto | null => {
+        const row = this.operationPackages().find((p) => p.id === id);
+        if (!row) return null;
+        return {
+          id: row.id,
+          featureId: row.featureId,
+          key: row.key,
+          name: row.name,
+          description: row.description,
+          status: 'active',
+          priority: 'medium',
+          isOperationPackage: true,
+        };
+      })();
+    if (!tc) return id;
     return `${tc.key ?? tc.id} - ${tc.name}`;
   }
 
   /** Nhãn ổn định khi bắt đầu chạy (trước khi đổi testcase). */
   private labelSnapshotForTestCaseId(testCaseId: string): string {
     const fromCache = this.findTestCaseById(testCaseId);
-    const tc = fromCache ?? this.testCases().find((x) => x.id === testCaseId);
+    const tc =
+      fromCache ??
+      this.testCases().find((x) => x.id === testCaseId) ??
+      ((): TestCaseDto | null => {
+        const row = this.operationPackages().find((p) => p.id === testCaseId);
+        if (!row) return null;
+        return {
+          id: row.id,
+          featureId: row.featureId,
+          key: row.key,
+          name: row.name,
+          description: row.description,
+          status: 'active',
+          priority: 'medium',
+          isOperationPackage: true,
+        };
+      })();
     if (!tc) return testCaseId;
     return `${tc.key ?? tc.id} - ${tc.name}`;
   }
@@ -2376,6 +3749,20 @@ export class App implements OnInit, OnDestroy {
     return Boolean(id && this.manualRunInFlightForTestCase(id));
   }
 
+  /** Ẩn panel phải ở THỰC THI / BÁO CÁO / CẤU HÌNH (giữ layout bằng invisible). */
+  protected rightRunPanelVisible(): boolean {
+    const s = this.currentSidebarSection();
+    // THỰC THI
+    if (s === 'runningtests' || s === 'runhistory' || s === 'schedules') return false;
+    // BÁO CÁO
+    if (s === 'reports') return false;
+    // CẤU HÌNH
+    if (s === 'settings' || s === 'members' || s === 'groups') return false;
+    if (s === 'operationpackages') return false;
+    if (s === 'documentation') return false;
+    return true;
+  }
+
   /** Có POST /run thủ công đang chờ trên testcase khác với ô đang mở. */
   protected manualRunInFlightOnAnotherTestCase(): boolean {
     const sel = this.selectedTestCaseId();
@@ -2391,22 +3778,16 @@ export class App implements OnInit, OnDestroy {
     if (!sel) {
       this.runResult.set(null);
       this.runError.set(null);
-      this.runAnalysisText.set(null);
-      this.runAnalysisError.set(null);
       return;
     }
     const r = this.runResult();
     if (r && r.testCaseId !== sel) {
       this.runResult.set(null);
       this.runError.set(null);
-      this.runAnalysisText.set(null);
-      this.runAnalysisError.set(null);
       return;
     }
     if (!r) {
       this.runError.set(null);
-      this.runAnalysisText.set(null);
-      this.runAnalysisError.set(null);
     }
   }
 
@@ -2535,8 +3916,6 @@ export class App implements OnInit, OnDestroy {
             const lastOk = steps.length - 1;
             this.selectedShotIndex.set(failedIdx >= 0 ? failedIdx : lastOk >= 0 ? lastOk : 0);
             this.runPanelTab.set('overview');
-            this.runAnalysisText.set(null);
-            this.runAnalysisError.set(null);
             this.loadRunHistory();
           }
 
@@ -2640,9 +4019,11 @@ export class App implements OnInit, OnDestroy {
       click_text: 'Click (theo chữ)',
       click_id: 'Click (theo id)',
       click_name: 'Click (theo name)',
+      click_xpath: 'Click (XPath)',
       type: 'Gõ text',
       type_id: 'Gõ text (theo id)',
       type_name: 'Gõ text (theo name)',
+      type_xpath: 'Gõ text (XPath)',
       wait: 'Chờ',
     };
     return m[kind] ?? kind;
@@ -2660,12 +4041,16 @@ export class App implements OnInit, OnDestroy {
         return `id: ${a.config.id ?? '—'}`;
       case 'click_name':
         return `name: ${a.config.name ?? '—'}`;
+      case 'click_xpath':
+        return a.config.xpath ?? '—';
       case 'type':
         return `Sel: ${a.config.selector ?? '—'} → "${a.config.value ?? ''}"`;
       case 'type_id':
         return `id: ${a.config.id ?? '—'} → "${a.config.value ?? ''}"`;
       case 'type_name':
         return `name: ${a.config.name ?? '—'} → "${a.config.value ?? ''}"`;
+      case 'type_xpath':
+        return `XPath: ${a.config.xpath ?? '—'} → "${a.config.value ?? ''}"`;
       case 'wait':
         return `${a.config.waitMs ?? 0} ms`;
       default:
@@ -2681,64 +4066,6 @@ export class App implements OnInit, OnDestroy {
   protected setQuickPrompt(text: string): void {
     this.chatPrompt.set(text);
     this.aiError.set(null);
-  }
-
-  protected buildRunResultAnalysisContext(): string {
-    const r = this.runResult();
-    if (!r) return '';
-    const head = [
-      `Dự án: ${this.selectedProjectName()}`,
-      `Feature: ${this.selectedFeatureName()}`,
-      `Test case: ${this.selectedTestCaseLabel()} (${r.testCaseId})`,
-      `Kết quả tổng: ${r.overallStatus} (ok=${r.ok})`,
-      `Thời lượng: ${(r.durationMs / 1000).toFixed(1)}s`,
-      r.error ? `Thông báo lỗi tổng: ${r.error}` : null,
-      '',
-      'Từng bước:',
-    ]
-      .filter((x) => x !== null)
-      .join('\n');
-    const steps = r.steps
-      .map(
-        (s) =>
-          `  ${s.order + 1}. [${s.kind}] ${s.name} → ${s.status}${s.message ? ` — ${s.message}` : ''}`,
-      )
-      .join('\n');
-    return `${head}\n${steps}`;
-  }
-
-  protected analyzeRunResult(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-    const ctx = this.buildRunResultAnalysisContext();
-    if (!ctx.trim()) {
-      this.runAnalysisError.set('Chưa có kết quả chạy để phân tích.');
-      return;
-    }
-    this.runAnalysisLoading.set(true);
-    this.runAnalysisError.set(null);
-    const message =
-      'Bạn là QA lead. Trả lời TIẾNG VIỆT, CỰC NGẮN (tối đa ~900 ký tự). Chỉ dùng 4–6 gạch đầu dòng, mỗi dòng tối đa 1 câu. Nội dung bắt buộc: (1) Pass/Fail và 1 lý do; (2) bước hoặc vùng rủi ro chính (nếu có); (3) 2–3 gợi ý cải thiện. Không mở bài, không lặp lại context, không markdown dài.';
-    this.http.post<ChatResponse>(`${QC_API_BASE_URL}/api/ai/chat`, { message, context: ctx }).subscribe({
-      next: (body) => {
-        this.runAnalysisLoading.set(false);
-        if (body.ok) {
-          this.runAnalysisText.set(body.text);
-        } else {
-          this.runAnalysisError.set(body.error ?? 'Không phân tích được.');
-          this.runAnalysisText.set(null);
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.runAnalysisLoading.set(false);
-        const payload = err.error as { error?: string } | undefined;
-        this.runAnalysisError.set(
-          typeof payload?.error === 'string'
-            ? payload.error
-            : err.message || 'Không thể gửi yêu cầu. Kiểm tra kết nối tới máy chủ API.',
-        );
-        this.runAnalysisText.set(null);
-      },
-    });
   }
 
   protected sendChat(): void {
@@ -3066,6 +4393,7 @@ export class App implements OnInit, OnDestroy {
     const testCaseId = this.selectedTestCaseId();
     if (!testCaseId) {
       this.actions.set([]);
+      this.testCasePrerequisites.set([]);
       return;
     }
     this.actionsLoading.set(true);
@@ -3087,7 +4415,446 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
+  /** Testcase / gói mà các API `actions` đang thao tác — khi modal sửa gói mở thì là id gói. */
+  protected effectiveActionsParentTestCaseId(): string | null {
+    if (this.operationPackageEditModalOpen() && this.packageEditorTestCaseId()) {
+      return this.packageEditorTestCaseId();
+    }
+    return this.selectedTestCaseId();
+  }
+
+  private setActionsMutationError(msg: string): void {
+    if (this.operationPackageEditModalOpen()) {
+      this.operationPackageEditActionsError.set(msg);
+    } else {
+      this.actionsError.set(msg);
+    }
+  }
+
+  private refreshActionsAfterMutation(): void {
+    if (this.operationPackageEditModalOpen() && this.packageEditorTestCaseId()) {
+      this.loadOperationPackageEditorActions();
+      return;
+    }
+    this.loadActions();
+  }
+
+  private loadOperationPackageEditorActions(): void {
+    const testCaseId = this.packageEditorTestCaseId();
+    if (!testCaseId) {
+      this.operationPackageEditActions.set([]);
+      return;
+    }
+    this.http
+      .get<{ ok: boolean; actions?: TestActionDto[]; error?: string }>(
+        `${QC_API_BASE_URL}/api/test-cases/${testCaseId}/actions`,
+      )
+      .subscribe({
+        next: (body) => {
+          if (body.ok && body.actions) {
+            this.operationPackageEditActions.set(
+              [...body.actions].sort((a, b) => a.order - b.order),
+            );
+          } else {
+            this.operationPackageEditActionsError.set(body.error ?? 'Không tải được bước');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.operationPackageEditActionsError.set(
+            err.message || 'Lỗi mạng khi tải bước',
+          );
+        },
+      });
+  }
+
+  protected loadTestCasePrerequisitesDetail(): void {
+    const testCaseId = this.selectedTestCaseId();
+    const featureId = this.selectedFeatureId();
+    const projectId = this.selectedProjectId();
+    if (!testCaseId || !featureId || !projectId) {
+      this.testCasePrerequisites.set([]);
+      this.testCasePrerequisitesError.set(null);
+      return;
+    }
+    this.testCasePrerequisitesError.set(null);
+    this.http
+      .get<{
+        ok: boolean;
+        prerequisites?: PrerequisiteEntryDto[];
+        error?: string;
+      }>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/test-cases/${testCaseId}`,
+      )
+      .subscribe({
+        next: (body) => {
+          if (body.ok && Array.isArray(body.prerequisites)) {
+            this.testCasePrerequisites.set(body.prerequisites);
+          } else {
+            this.testCasePrerequisites.set([]);
+            if (!body.ok && body.error) {
+              this.testCasePrerequisitesError.set(body.error);
+            }
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.testCasePrerequisites.set([]);
+          this.testCasePrerequisitesError.set(err.message || 'Không tải được gói tiên quyết');
+        },
+      });
+  }
+
+  protected sortedPrerequisites(): PrerequisiteEntryDto[] {
+    return [...this.testCasePrerequisites()].sort((a, b) => a.order - b.order);
+  }
+
+  protected openPrerequisitePicker(): void {
+    if (!this.selectedTestCaseId()) return;
+    this.prerequisitePickerOpen.set(true);
+    this.loadSchedulePickerTestCases();
+  }
+
+  protected closePrerequisitePicker(): void {
+    this.prerequisitePickerOpen.set(false);
+  }
+
+  protected pickPrerequisite(tc: SchedulePickerTcDto): void {
+    const sel = this.selectedTestCaseId();
+    if (!sel || tc.id === sel) return;
+    const cur = this.sortedPrerequisites();
+    if (cur.some((p) => p.testCaseId === tc.id)) return;
+    const next = this.reindexPrerequisiteOrders([
+      ...cur,
+      {
+        testCaseId: tc.id,
+        order: cur.length,
+        name: tc.testCaseName,
+        key: null,
+        featureId: tc.featureId,
+        featureName: tc.featureName,
+      },
+    ]);
+    this.testCasePrerequisites.set(next);
+  }
+
+  protected removePrerequisite(testCaseId: string): void {
+    const next = this.reindexPrerequisiteOrders(
+      this.sortedPrerequisites().filter((p) => p.testCaseId !== testCaseId),
+    );
+    this.testCasePrerequisites.set(next);
+  }
+
+  protected isPrerequisiteAlreadyListed(testCaseId: string): boolean {
+    return this.sortedPrerequisites().some((p) => p.testCaseId === testCaseId);
+  }
+
+  protected movePrerequisite(testCaseId: string, delta: number): void {
+    const list = this.sortedPrerequisites();
+    const i = list.findIndex((p) => p.testCaseId === testCaseId);
+    if (i < 0) return;
+    const j = i + delta;
+    if (j < 0 || j >= list.length) return;
+    const swap = [...list];
+    const t = swap[i]!;
+    swap[i] = swap[j]!;
+    swap[j] = t;
+    this.testCasePrerequisites.set(this.reindexPrerequisiteOrders(swap));
+  }
+
+  private reindexPrerequisiteOrders(list: PrerequisiteEntryDto[]): PrerequisiteEntryDto[] {
+    return list.map((p, idx) => ({ ...p, order: idx }));
+  }
+
+  protected savePrerequisitesToServer(): void {
+    const projectId = this.selectedProjectId();
+    const featureId = this.selectedFeatureId();
+    const testCaseId = this.selectedTestCaseId();
+    if (!projectId || !featureId || !testCaseId) return;
+    const ids = this.sortedPrerequisites().map((p) => p.testCaseId);
+    this.testCasePrerequisitesSaving.set(true);
+    this.testCasePrerequisitesError.set(null);
+    this.http
+      .put<{ ok: boolean; prerequisites?: PrerequisiteEntryDto[]; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/test-cases/${testCaseId}/prerequisites`,
+        { prerequisiteTestCaseIds: ids },
+      )
+      .subscribe({
+        next: (body) => {
+          this.testCasePrerequisitesSaving.set(false);
+          if (body.ok && body.prerequisites) {
+            this.testCasePrerequisites.set(body.prerequisites);
+          } else {
+            this.testCasePrerequisitesError.set(body.error ?? 'Lưu thất bại');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.testCasePrerequisitesSaving.set(false);
+          this.testCasePrerequisitesError.set(
+            typeof err.error?.error === 'string' ? err.error.error : err.message || 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  protected loadOperationPackages(projectId: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.operationPackagesLoading.set(true);
+    this.operationPackagesError.set(null);
+    this.http
+      .get<{ ok: boolean; packages?: OperationPackageRowDto[]; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/operation-packages`,
+      )
+      .subscribe({
+        next: (body) => {
+          this.operationPackagesLoading.set(false);
+          if (!body.ok || !body.packages) {
+            this.operationPackagesError.set(body.error ?? 'Không tải được danh sách');
+            this.operationPackages.set([]);
+            return;
+          }
+          this.operationPackages.set(body.packages);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.operationPackagesLoading.set(false);
+          this.operationPackages.set([]);
+          this.operationPackagesError.set(e.message || 'Lỗi mạng');
+        },
+      });
+  }
+
+  protected openOperationPackageFromTestCase(): void {
+    const tcId = this.selectedTestCaseId();
+    if (!tcId) return;
+    let tc = this.findTestCaseById(tcId);
+    if (!tc) {
+      tc = {
+        id: tcId,
+        featureId: this.selectedFeatureId(),
+        key: null,
+        name: this.selectedTestCaseLabel(),
+        description: '',
+        status: 'active',
+        priority: 'medium',
+      };
+    }
+    this.operationPackageFormName.set(`${tc.name} — Gói thao tác`);
+    this.operationPackageFormDescription.set(
+      tc.description?.trim()
+        ? `Đóng gói từ: ${tc.description.trim()}`
+        : `Gói thao tác tách từ testcase «${tc.name}».`,
+    );
+    this.operationPackageFormTargetFeatureId.set(this.selectedFeatureId() ?? '');
+    this.operationPackageError.set(null);
+    this.operationPackageModalOpen.set(true);
+  }
+
+  protected closeOperationPackageModal(): void {
+    this.operationPackageModalOpen.set(false);
+    this.operationPackageSaving.set(false);
+  }
+
+  protected submitOperationPackage(): void {
+    const projectId = this.selectedProjectId();
+    const featureId = this.selectedFeatureId();
+    const sourceId = this.selectedTestCaseId();
+    if (!projectId || !featureId || !sourceId) return;
+    const name = this.operationPackageFormName().trim();
+    const description = this.operationPackageFormDescription().trim();
+    const targetFeatureId = this.operationPackageFormTargetFeatureId().trim() || featureId;
+    if (!name) {
+      this.operationPackageError.set('Cần tên cho gói thao tác.');
+      return;
+    }
+    this.operationPackageSaving.set(true);
+    this.operationPackageError.set(null);
+    this.http
+      .post<{
+        ok: boolean;
+        testCase?: TestCaseDto;
+        actionsCopied?: number;
+        error?: string;
+      }>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/test-cases/${sourceId}/operation-package`,
+        {
+          name,
+          description,
+          targetFeatureId,
+        },
+      )
+      .subscribe({
+        next: (body) => {
+          this.operationPackageSaving.set(false);
+          if (!body.ok) {
+            this.operationPackageError.set(body.error ?? 'Tạo gói thất bại');
+            return;
+          }
+          this.closeOperationPackageModal();
+          this.invalidateFeatureTestCasesCache(targetFeatureId);
+          this.ensureFeatureTestCasesLoaded(targetFeatureId);
+          if (this.currentSidebarSection() === 'operationpackages') {
+            this.loadOperationPackages(projectId);
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.operationPackageSaving.set(false);
+          this.operationPackageError.set(
+            typeof err.error?.error === 'string' ? err.error.error : err.message || 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  /** Xóa cache testcase theo feature để explorer tải lại danh sách. */
+  private invalidateFeatureTestCasesCache(featureId: string): void {
+    const c = { ...this.testCasesByFeature() };
+    delete c[featureId];
+    this.testCasesByFeature.set(c);
+  }
+
+  protected openOperationPackageEditor(pkg: OperationPackageRowDto): void {
+    const projectId = this.selectedProjectId();
+    if (!isPlatformBrowser(this.platformId) || !projectId) return;
+
+    this.closeMenu();
+    this.packageEditorTestCaseId.set(pkg.id);
+    this.operationPackageEditFeatureId.set(pkg.featureId);
+    this.operationPackageEditName.set(pkg.name);
+    this.operationPackageEditDescription.set(pkg.description ?? '');
+    this.operationPackageEditModalOpen.set(true);
+    this.operationPackageEditError.set(null);
+    this.operationPackageEditActionsError.set(null);
+    this.operationPackageEditLoading.set(true);
+    this.operationPackageEditActions.set([]);
+
+    const detailUrl = `${QC_API_BASE_URL}/api/projects/${projectId}/features/${pkg.featureId}/test-cases/${pkg.id}`;
+    const actionsUrl = `${QC_API_BASE_URL}/api/test-cases/${pkg.id}/actions`;
+
+    forkJoin({
+      detail: this.http.get<{ ok: boolean; testCase?: TestCaseDto; error?: string }>(detailUrl),
+      actions: this.http.get<{ ok: boolean; actions?: TestActionDto[]; error?: string }>(
+        actionsUrl,
+      ),
+    }).subscribe({
+      next: ({ detail, actions }) => {
+        this.operationPackageEditLoading.set(false);
+        if (detail.ok && detail.testCase) {
+          const tc = detail.testCase;
+          this.operationPackageEditName.set(tc.name);
+          this.operationPackageEditDescription.set(tc.description ?? '');
+        } else if (!detail.ok && detail.error) {
+          this.operationPackageEditError.set(detail.error);
+        }
+        if (actions.ok && actions.actions) {
+          this.operationPackageEditActions.set(
+            [...actions.actions].sort((a, b) => a.order - b.order),
+          );
+        } else {
+          this.operationPackageEditActionsError.set(
+            actions.error ?? 'Không tải được bước',
+          );
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.operationPackageEditLoading.set(false);
+        this.operationPackageEditError.set(err.message || 'Lỗi mạng');
+      },
+    });
+  }
+
+  protected closeOperationPackageEditor(): void {
+    this.operationPackageEditModalOpen.set(false);
+    this.packageEditorTestCaseId.set(null);
+    this.operationPackageEditFeatureId.set(null);
+    this.operationPackageEditActions.set([]);
+    this.operationPackageEditLoading.set(false);
+    this.operationPackageEditSavingMeta.set(false);
+    this.operationPackageEditError.set(null);
+    this.operationPackageEditActionsError.set(null);
+  }
+
+  protected saveOperationPackageMeta(): void {
+    const projectId = this.selectedProjectId();
+    const featureId = this.operationPackageEditFeatureId();
+    const testCaseId = this.packageEditorTestCaseId();
+    if (!projectId || !featureId || !testCaseId) return;
+    const name = this.operationPackageEditName().trim();
+    if (!name) {
+      this.operationPackageEditError.set('Cần tên hiển thị.');
+      return;
+    }
+    this.operationPackageEditSavingMeta.set(true);
+    this.operationPackageEditError.set(null);
+    this.http
+      .put<{ ok: boolean; testCase?: TestCaseDto; error?: string }>(
+        `${QC_API_BASE_URL}/api/projects/${projectId}/features/${featureId}/test-cases/${testCaseId}`,
+        {
+          name,
+          description: this.operationPackageEditDescription().trim(),
+        },
+      )
+      .subscribe({
+        next: (body) => {
+          this.operationPackageEditSavingMeta.set(false);
+          if (!body.ok) {
+            this.operationPackageEditError.set(body.error ?? 'Lưu thất bại');
+            return;
+          }
+          if (body.testCase) {
+            this.operationPackageEditName.set(body.testCase.name);
+            this.operationPackageEditDescription.set(body.testCase.description ?? '');
+          }
+          const pid = this.selectedProjectId();
+          if (pid) this.loadOperationPackages(pid);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.operationPackageEditSavingMeta.set(false);
+          this.operationPackageEditError.set(
+            typeof err.error?.error === 'string'
+              ? err.error.error
+              : err.message || 'Lỗi mạng',
+          );
+        },
+      });
+  }
+
+  protected openPackageAddStep(): void {
+    if (!this.operationPackageEditModalOpen() || !this.packageEditorTestCaseId()) return;
+    this.stepMenuContext.set('package');
+    this.resetForm();
+    this.addStepOpen.set(true);
+    this.menuOpenForId.set(null);
+  }
+
+  protected menuContextActions(): TestActionDto[] {
+    return this.stepMenuContext() === 'package'
+      ? this.operationPackageEditActions()
+      : this.actions();
+  }
+
+  protected getMenuContextAction(): TestActionDto | null {
+    const id = this.menuOpenForId();
+    if (!id) return null;
+    return this.menuContextActions().find((a) => a.id === id) ?? null;
+  }
+
+  protected openEditStepFromMenu(): void {
+    const a = this.getMenuContextAction();
+    if (a) this.openEditStep(a);
+  }
+
+  protected toggleEnabledFromMenu(): void {
+    const a = this.getMenuContextAction();
+    if (!a) return;
+    this.closeMenu();
+    this.toggleEnabled(a);
+  }
+
+  protected featureNameById(featureId: string): string {
+    const f = this.features().find((x) => x.id === featureId);
+    return f?.name?.trim() ? f.name : featureId;
+  }
+
   protected openAddStep(): void {
+    this.stepMenuContext.set('main');
     this.resetForm();
     this.addStepOpen.set(true);
     this.menuOpenForId.set(null);
@@ -3119,7 +4886,8 @@ export class App implements OnInit, OnDestroy {
     this.deleteTargetId.set(null);
   }
 
-  protected toggleMenu(id: string, event?: MouseEvent): void {
+  protected toggleMenu(id: string, event?: MouseEvent, context: 'main' | 'package' = 'main'): void {
+    this.stepMenuContext.set(context);
     event?.preventDefault();
     event?.stopPropagation();
 
@@ -3186,7 +4954,9 @@ export class App implements OnInit, OnDestroy {
     this.draggedActionId = null;
     if (!fromId || fromId === targetActionId) return;
 
-    const list = [...this.actions()].sort((a, b) => a.order - b.order);
+    const usePackage = this.operationPackageEditModalOpen();
+    const rawList = usePackage ? this.operationPackageEditActions() : this.actions();
+    const list = [...rawList].sort((a, b) => a.order - b.order);
     const fromIdx = list.findIndex((a) => a.id === fromId);
     const toIdx = list.findIndex((a) => a.id === targetActionId);
     if (fromIdx < 0 || toIdx < 0) return;
@@ -3195,21 +4965,29 @@ export class App implements OnInit, OnDestroy {
     list.splice(toIdx, 0, moved);
     const ids = list.map((a) => a.id);
 
+    const testCaseId = this.effectiveActionsParentTestCaseId();
+    if (!testCaseId) return;
+
     this.http
       .put<{ ok: boolean; actions?: TestActionDto[]; error?: string }>(
-        `${QC_API_BASE_URL}/api/test-cases/${this.selectedTestCaseId()}/actions-order`,
+        `${QC_API_BASE_URL}/api/test-cases/${testCaseId}/actions-order`,
         { orderedIds: ids },
       )
       .subscribe({
         next: (body) => {
           if (body.ok && body.actions) {
-            this.actions.set([...body.actions].sort((a, b) => a.order - b.order));
+            const sorted = [...body.actions].sort((a, b) => a.order - b.order);
+            if (usePackage) {
+              this.operationPackageEditActions.set(sorted);
+            } else {
+              this.actions.set(sorted);
+            }
           } else {
-            this.actionsError.set(body.error ?? 'Sắp xếp thất bại');
+            this.setActionsMutationError(body.error ?? 'Sắp xếp thất bại');
           }
         },
         error: (e: HttpErrorResponse) =>
-          this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi sắp xếp'),
+          this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi sắp xếp'),
       });
   }
 
@@ -3228,6 +5006,10 @@ export class App implements OnInit, OnDestroy {
 
   protected onFormSelectorInput(e: Event): void {
     this.formSelector.set((e.target as HTMLInputElement).value);
+  }
+
+  protected onFormXpathInput(e: Event): void {
+    this.formXpath.set((e.target as HTMLInputElement).value);
   }
 
   protected onFormMatchTextInput(e: Event): void {
@@ -3261,6 +5043,7 @@ export class App implements OnInit, OnDestroy {
     this.formKind.set('navigate');
     this.formUrl.set('');
     this.formSelector.set('');
+    this.formXpath.set('');
     this.formMatchText.set('');
     this.formDomId.set('');
     this.formDomName.set('');
@@ -3275,6 +5058,7 @@ export class App implements OnInit, OnDestroy {
     this.formKind.set(a.kind);
     this.formUrl.set(a.config.url ?? '');
     this.formSelector.set(a.config.selector ?? '');
+    this.formXpath.set(a.config.xpath ?? '');
     this.formMatchText.set(a.config.matchText ?? '');
     this.formDomId.set(a.config.id ?? '');
     this.formDomName.set(a.config.name ?? '');
@@ -3296,12 +5080,16 @@ export class App implements OnInit, OnDestroy {
         return { id: this.formDomId().trim() };
       case 'click_name':
         return { name: this.formDomName().trim() };
+      case 'click_xpath':
+        return { xpath: this.formXpath().trim() };
       case 'type':
         return { selector: this.formSelector().trim(), value: this.formValue() };
       case 'type_id':
         return { id: this.formDomId().trim(), value: this.formValue() };
       case 'type_name':
         return { name: this.formDomName().trim(), value: this.formValue() };
+      case 'type_xpath':
+        return { xpath: this.formXpath().trim(), value: this.formValue() };
       case 'wait':
         return { waitMs: Math.max(0, Math.floor(this.formWaitMs())) };
       default:
@@ -3314,9 +5102,9 @@ export class App implements OnInit, OnDestroy {
     const config = this.buildConfigFromForm();
     const expectation = this.formExpectation().trim();
     const editId = this.editingId();
-    const testCaseId = this.selectedTestCaseId();
+    const testCaseId = this.effectiveActionsParentTestCaseId();
     if (!testCaseId) {
-      this.actionsError.set('Chưa chọn test case');
+      this.setActionsMutationError('Chưa chọn test case hoặc gói để gắn bước');
       return;
     }
 
@@ -3330,13 +5118,13 @@ export class App implements OnInit, OnDestroy {
           next: (body) => {
             if (body.ok) {
               this.closeEditStep();
-              this.loadActions();
+              this.refreshActionsAfterMutation();
             } else {
-              this.actionsError.set(body.error ?? 'Cập nhật thất bại');
+              this.setActionsMutationError(body.error ?? 'Cập nhật thất bại');
             }
           },
           error: (e: HttpErrorResponse) =>
-            this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi cập nhật'),
+            this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi cập nhật'),
         });
       return;
     }
@@ -3351,20 +5139,20 @@ export class App implements OnInit, OnDestroy {
           if (body.ok) {
             this.closeAddStep();
             this.resetForm();
-            this.loadActions();
+            this.refreshActionsAfterMutation();
           } else {
-            this.actionsError.set(body.error ?? 'Thêm thất bại');
+            this.setActionsMutationError(body.error ?? 'Thêm thất bại');
           }
         },
         error: (e: HttpErrorResponse) =>
-          this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi thêm'),
+          this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi thêm'),
       });
   }
 
   protected confirmDelete(): void {
     const id = this.deleteTargetId();
     if (!id) return;
-    const testCaseId = this.selectedTestCaseId();
+    const testCaseId = this.effectiveActionsParentTestCaseId();
     if (!testCaseId) return;
     this.http
       .delete<{ ok: boolean; error?: string }>(
@@ -3375,18 +5163,18 @@ export class App implements OnInit, OnDestroy {
           if (body.ok) {
             if (this.editingId() === id) this.resetForm();
             this.closeDeleteStep();
-            this.loadActions();
+            this.refreshActionsAfterMutation();
           } else {
-            this.actionsError.set(body.error ?? 'Xóa thất bại');
+            this.setActionsMutationError(body.error ?? 'Xóa thất bại');
           }
         },
         error: (e: HttpErrorResponse) =>
-          this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi xóa'),
+          this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi xóa'),
       });
   }
 
   protected toggleEnabled(a: TestActionDto): void {
-    const testCaseId = this.selectedTestCaseId();
+    const testCaseId = this.effectiveActionsParentTestCaseId();
     if (!testCaseId) return;
     this.http
       .put<{ ok: boolean; action?: TestActionDto; error?: string }>(
@@ -3396,21 +5184,23 @@ export class App implements OnInit, OnDestroy {
       .subscribe({
         next: (body) => {
           if (body.ok) {
-            this.loadActions();
+            this.refreshActionsAfterMutation();
             this.closeMenu();
           } else {
-            this.actionsError.set(body.error ?? 'Không cập nhật được trạng thái');
+            this.setActionsMutationError(body.error ?? 'Không cập nhật được trạng thái');
           }
         },
         error: (e: HttpErrorResponse) =>
-          this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi cập nhật trạng thái'),
+          this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi cập nhật trạng thái'),
       });
   }
 
   protected moveAction(id: string, delta: number): void {
-    const testCaseId = this.selectedTestCaseId();
+    const testCaseId = this.effectiveActionsParentTestCaseId();
     if (!testCaseId) return;
-    const list = [...this.actions()].sort((a, b) => a.order - b.order);
+    const usePackage = this.operationPackageEditModalOpen();
+    const rawList = usePackage ? this.operationPackageEditActions() : this.actions();
+    const list = [...rawList].sort((a, b) => a.order - b.order);
     const i = list.findIndex((a) => a.id === id);
     const j = i + delta;
     if (i < 0 || j < 0 || j >= list.length) {
@@ -3428,13 +5218,18 @@ export class App implements OnInit, OnDestroy {
       .subscribe({
         next: (body) => {
           if (body.ok && body.actions) {
-            this.actions.set([...body.actions].sort((a, b) => a.order - b.order));
+            const sorted = [...body.actions].sort((a, b) => a.order - b.order);
+            if (usePackage) {
+              this.operationPackageEditActions.set(sorted);
+            } else {
+              this.actions.set(sorted);
+            }
           } else {
-            this.actionsError.set(body.error ?? 'Sắp xếp thất bại');
+            this.setActionsMutationError(body.error ?? 'Sắp xếp thất bại');
           }
         },
         error: (e: HttpErrorResponse) =>
-          this.actionsError.set(e.error?.error ?? e.message ?? 'Lỗi sắp xếp'),
+          this.setActionsMutationError(e.error?.error ?? e.message ?? 'Lỗi sắp xếp'),
       });
   }
 
@@ -3462,8 +5257,6 @@ export class App implements OnInit, OnDestroy {
     }
     this.runPanelTab.set('overview');
     this.selectedShotIndex.set(0);
-    this.runAnalysisText.set(null);
-    this.runAnalysisError.set(null);
 
     this.http
       .post<{
@@ -3634,7 +5427,7 @@ export class App implements OnInit, OnDestroy {
     return `${t.slice(0, edge)}…${t.slice(-edge)}`;
   }
 
-  protected setTestCaseTab(tab: 'steps' | 'data' | 'settings' | 'history'): void {
+  protected setTestCaseTab(tab: 'steps' | 'data' | 'history'): void {
     this.testCaseTab.set(tab);
     if (tab === 'history') {
       this.loadRunHistory();
@@ -3645,9 +5438,11 @@ export class App implements OnInit, OnDestroy {
     const testCaseId = this.selectedTestCaseId();
     if (!testCaseId) {
       this.runHistory.set([]);
+      this.runHistoryError.set(null);
+      this.runHistoryLoading.set(false);
       return;
     }
-    if (this.runHistoryLoading()) return;
+    const gen = ++this.runHistoryFetchGen;
     this.runHistoryLoading.set(true);
     this.runHistoryError.set(null);
     this.http
@@ -3656,15 +5451,24 @@ export class App implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (body) => {
+          if (gen !== this.runHistoryFetchGen || this.selectedTestCaseId() !== testCaseId) {
+            return;
+          }
           this.runHistoryLoading.set(false);
           if (body.ok && Array.isArray(body.runs)) {
             this.runHistory.set(body.runs);
+            this.runHistoryError.set(null);
           } else {
+            this.runHistory.set([]);
             this.runHistoryError.set(body.error ?? 'Không tải được lịch sử chạy');
           }
         },
         error: (e: HttpErrorResponse) => {
+          if (gen !== this.runHistoryFetchGen || this.selectedTestCaseId() !== testCaseId) {
+            return;
+          }
           this.runHistoryLoading.set(false);
+          this.runHistory.set([]);
           this.runHistoryError.set(e.error?.error ?? e.message ?? 'Lỗi tải lịch sử chạy');
         },
       });
